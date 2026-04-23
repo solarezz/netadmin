@@ -61,33 +61,35 @@
     <div class="col-md-7">
         {% if recent_metrics %}
         <div class="card border-0 shadow-sm mb-3">
-            <div class="card-header bg-white border-0 py-3">
+            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-bold"><i class="bi bi-graph-up text-success"></i> Последние метрики</h6>
+                <small class="text-muted" id="metrics-timestamp">
+                    {% with m=recent_metrics.0 %}Обновлено: {{ m.timestamp|date:"d.m.Y H:i" }}{% endwith %}
+                </small>
             </div>
             <div class="card-body">
                 {% with m=recent_metrics.0 %}
                 <div class="row g-3 text-center mb-2">
                     <div class="col-6">
-                        <div class="fw-bold fs-4 text-primary">{{ m.cpu_usage|default:"—" }}%</div>
-                        <div class="text-muted small">CPU</div>
-                        {% if m.cpu_usage %}
-                        <div class="progress mt-1" style="height:6px">
-                            <div class="progress-bar bg-primary" style="width:{{ m.cpu_usage }}%"></div>
+                        <div class="fw-bold fs-4 text-primary" id="metric-cpu">
+                            {% if m.cpu_usage is not None %}{{ m.cpu_usage }}{% else %}—{% endif %}%
                         </div>
-                        {% endif %}
+                        <div class="text-muted small">CPU</div>
+                        <div class="progress mt-1" style="height:6px">
+                            <div class="progress-bar bg-primary" id="bar-cpu"
+                                 style="width:{% if m.cpu_usage %}{{ m.cpu_usage }}{% else %}0{% endif %}%"></div>
+                        </div>
                     </div>
                     <div class="col-6">
-                        <div class="fw-bold fs-4 text-warning">{{ m.memory_usage|default:"—" }}%</div>
-                        <div class="text-muted small">RAM</div>
-                        {% if m.memory_usage %}
-                        <div class="progress mt-1" style="height:6px">
-                            <div class="progress-bar bg-warning" style="width:{{ m.memory_usage }}%"></div>
+                        <div class="fw-bold fs-4 text-warning" id="metric-ram">
+                            {% if m.memory_usage is not None %}{{ m.memory_usage }}{% else %}—{% endif %}%
                         </div>
-                        {% endif %}
+                        <div class="text-muted small">RAM</div>
+                        <div class="progress mt-1" style="height:6px">
+                            <div class="progress-bar bg-warning" id="bar-ram"
+                                 style="width:{% if m.memory_usage %}{{ m.memory_usage }}{% else %}0{% endif %}%"></div>
+                        </div>
                     </div>
-                </div>
-                <div class="text-muted text-center" style="font-size:0.75rem;">
-                    Обновлено: {{ m.timestamp|date:"d.m.Y H:i" }}
                 </div>
                 {% endwith %}
             </div>
@@ -152,4 +154,41 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ===== Авто-обновление метрик из БД каждые 30 сек (без SSH) =====
+const METRICS_URL = "{% url 'api-device-metrics' device.pk %}";
+
+function updateMetrics(data) {
+    const cpuEl  = document.getElementById('metric-cpu');
+    const ramEl  = document.getElementById('metric-ram');
+    const barCpu = document.getElementById('bar-cpu');
+    const barRam = document.getElementById('bar-ram');
+    const tsEl   = document.getElementById('metrics-timestamp');
+
+    if (cpuEl)  cpuEl.textContent  = (data.cpu  !== null ? data.cpu  : '—') + '%';
+    if (ramEl)  ramEl.textContent  = (data.ram  !== null ? data.ram  : '—') + '%';
+    if (barCpu) barCpu.style.width = (data.cpu  || 0) + '%';
+    if (barRam) barRam.style.width = (data.ram  || 0) + '%';
+    if (tsEl && data.timestamp) tsEl.textContent = 'Обновлено: ' + data.timestamp;
+
+    // Цвет CPU по нагрузке
+    if (cpuEl && data.cpu !== null) {
+        cpuEl.className = 'fw-bold fs-4 ' +
+            (data.cpu > 80 ? 'text-danger' : data.cpu > 50 ? 'text-warning' : 'text-primary');
+    }
+}
+
+function fetchMetrics() {
+    fetch(METRICS_URL)
+        .then(r => r.json())
+        .then(updateMetrics)
+        .catch(() => {});
+}
+
+fetchMetrics();
+setInterval(fetchMetrics, 30000);
+</script>
 {% endblock %}

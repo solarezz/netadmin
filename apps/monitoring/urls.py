@@ -6,4 +6,5 @@ urlpatterns = [
     path('check-all/', views.CheckAllDevicesView.as_view(), name='check-all-devices'),
     path('alerts/<int:alert_id>/resolve/', views.ResolveAlertView.as_view(), name='alert-resolve'),
     path('api/devices/status/', views.DeviceStatusApiView.as_view(), name='api-devices-status'),
+    path('api/devices/<int:pk>/metrics/', views.DeviceMetricsApiView.as_view(), name='api-device-metrics'),
 ]

@@ -120,3 +120,32 @@ class DeviceStatusApiView(LoginRequiredMixin, View):
             'active_alerts': len(alerts),
             'alerts': alerts,
         })
+
+
+class DeviceMetricsApiView(LoginRequiredMixin, View):
+    """
+    GET /api/devices/<pk>/metrics/
+    Возвращает последнюю метрику из БД (без SSH, дёшево).
+    Используется для auto-refresh на странице устройства.
+    """
+    def get(self, request, pk):
+        from apps.monitoring.models import DeviceMetric
+        try:
+            device = Device.objects.get(pk=pk)
+        except Device.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)
+
+        metric = DeviceMetric.objects.filter(device=device).first()
+        if metric:
+            return JsonResponse({
+                'cpu':       metric.cpu_usage,
+                'ram':       metric.memory_usage,
+                'timestamp': metric.timestamp.strftime('%d.%m.%Y %H:%M:%S'),
+                'uptime':    device.uptime or '—',
+                'os':        device.os_version or '—',
+                'model':     device.model or '—',
+            })
+        return JsonResponse({'cpu': None, 'ram': None, 'timestamp': None,
+                             'uptime': device.uptime or '—',
+                             'os': device.os_version or '—',
+                             'model': device.model or '—'})

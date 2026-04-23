@@ -78,28 +78,24 @@ class LinuxManager(DeviceConnector):
         return interfaces
 
     def get_cpu_usage(self) -> float:
-        # Два замера /proc/stat с паузой 1 сек — надёжно на любом Linux
-        cmd = (
-            "python3 -c \""
-            "import time; "
-            "f=open('/proc/stat'); l1=f.readline(); f.close(); "
-            "time.sleep(1); "
-            "f=open('/proc/stat'); l2=f.readline(); f.close(); "
-            "a=[int(x) for x in l1.split()[1:]]; "
-            "b=[int(x) for x in l2.split()[1:]]; "
-            "t1=sum(a); i1=a[3]; t2=sum(b); i2=b[3]; "
-            "print(round(100*(1-(i2-i1)/(t2-t1)),1)) if t2!=t1 else print(0)\""
+        # base64-encoded Python script — избегаем проблем с кавычками в SSH
+        import base64
+        script = (
+            "import time\n"
+            "with open('/proc/stat') as f: a=f.readline().split()\n"
+            "time.sleep(0.5)\n"
+            "with open('/proc/stat') as f: b=f.readline().split()\n"
+            "tot=sum(int(x) for x in b[1:])-sum(int(x) for x in a[1:])\n"
+            "idl=int(b[4])-int(a[4])\n"
+            "print(round(100*(1-idl/tot),1) if tot else 0)\n"
         )
-        output = self.execute_command(cmd)
+        encoded = base64.b64encode(script.encode()).decode()
+        output = self.execute_command(f"echo {encoded} | base64 -d | python3")
         try:
-            return float(output.strip())
-        except ValueError:
-            # Запасной вариант: vmstat
-            try:
-                out2 = self.execute_command("vmstat 1 2 | tail -1 | awk '{print 100-$15}'")
-                return float(out2.strip())
-            except Exception:
-                return 0.0
+            val = float(output.strip())
+            return val if val >= 0 else None
+        except (ValueError, TypeError):
+            return None
 
     def get_memory_usage(self) -> float:
         output = self.execute_command(
