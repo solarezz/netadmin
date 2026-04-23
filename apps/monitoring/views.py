@@ -89,12 +89,10 @@ class ResolveAlertView(LoginRequiredMixin, View):
 class DeviceStatusApiView(LoginRequiredMixin, View):
     """
     GET /api/devices/status/
-    JSON-список статусов всех устройств для AJAX auto-refresh.
+    JSON-список статусов всех устройств + активные алерты для AJAX auto-refresh.
     """
     def get(self, request):
-        devices = Device.objects.values(
-            'id', 'name', 'status', 'last_seen', 'uptime'
-        )
+        devices = Device.objects.values('id', 'name', 'status', 'last_seen', 'uptime')
         data = []
         for d in devices:
             data.append({
@@ -104,5 +102,21 @@ class DeviceStatusApiView(LoginRequiredMixin, View):
                 'last_seen': d['last_seen'].strftime('%d.%m.%Y %H:%M') if d['last_seen'] else '—',
                 'uptime': d['uptime'] or '—',
             })
-        active_alerts = Alert.objects.filter(is_resolved=False).count()
-        return JsonResponse({'devices': data, 'active_alerts': active_alerts})
+
+        # Последние 10 активных алертов для обновления блока на дашборде
+        alerts_qs = Alert.objects.filter(is_resolved=False).select_related('device')[:10]
+        alerts = []
+        for a in alerts_qs:
+            alerts.append({
+                'id': a.pk,
+                'device_name': a.device.name,
+                'severity': a.severity,
+                'message': a.message,
+                'created_at': a.created_at.strftime('%d.%m %H:%M'),
+            })
+
+        return JsonResponse({
+            'devices': data,
+            'active_alerts': len(alerts),
+            'alerts': alerts,
+        })

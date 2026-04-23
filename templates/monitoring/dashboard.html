@@ -23,7 +23,7 @@
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm text-center py-3 border-start border-success border-3">
             <div class="card-body">
-                <div class="fs-1 fw-bold text-success">{{ online_count }}</div>
+                <div class="fs-1 fw-bold text-success" id="counter-online">{{ online_count }}</div>
                 <div class="text-muted small">Online</div>
             </div>
         </div>
@@ -31,7 +31,7 @@
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm text-center py-3 border-start border-danger border-3">
             <div class="card-body">
-                <div class="fs-1 fw-bold text-danger">{{ offline_count }}</div>
+                <div class="fs-1 fw-bold text-danger" id="counter-offline">{{ offline_count }}</div>
                 <div class="text-muted small">Offline</div>
             </div>
         </div>
@@ -39,7 +39,7 @@
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm text-center py-3 border-start border-warning border-3">
             <div class="card-body">
-                <div class="fs-1 fw-bold text-warning">{{ warning_count }}</div>
+                <div class="fs-1 fw-bold text-warning" id="counter-warning">{{ warning_count }}</div>
                 <div class="text-muted small">Предупреждения</div>
             </div>
         </div>
@@ -246,7 +246,7 @@ const timerEl = document.getElementById('refresh-timer');
 let isChecking = false;
 
 function updateUI(data) {
-    // Обновить строки таблицы
+    // --- 1. Обновить строки таблицы устройств ---
     data.devices.forEach(device => {
         const row = document.querySelector(`tr[data-device-id="${device.id}"]`);
         if (!row) return;
@@ -259,20 +259,60 @@ function updateUI(data) {
         if (seenEl)   seenEl.textContent = device.last_seen;
     });
 
-    // Обновить счётчики карточек
+    // --- 2. Обновить счётчики карточек ---
     const onlineCount  = data.devices.filter(d => d.status === 'online').length;
     const offlineCount = data.devices.filter(d => d.status === 'offline').length;
     const warnCount    = data.devices.filter(d => d.status === 'warning').length;
-    const el = (id) => document.querySelector(id);
-    if (el('.counter-online'))  el('.counter-online').textContent  = onlineCount;
-    if (el('.counter-offline')) el('.counter-offline').textContent = offlineCount;
-    if (el('.counter-warning')) el('.counter-warning').textContent = warnCount;
+    const cOnline  = document.getElementById('counter-online');
+    const cOffline = document.getElementById('counter-offline');
+    const cWarn    = document.getElementById('counter-warning');
+    if (cOnline)  cOnline.textContent  = onlineCount;
+    if (cOffline) cOffline.textContent = offlineCount;
+    if (cWarn)    cWarn.textContent    = warnCount;
 
-    // Обновить badge алертов
+    // --- 3. Обновить блок активных алертов ---
+    const alertsList = document.getElementById('alerts-list');
+    if (alertsList) {
+        if (data.alerts.length === 0) {
+            alertsList.innerHTML = `
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item text-center text-success py-3" id="no-alerts-msg">
+                        <i class="bi bi-check-circle-fill"></i> Всё в порядке
+                    </li>
+                </ul>`;
+        } else {
+            const icons = {
+                'critical': '<i class="bi bi-x-circle-fill text-danger mt-1"></i>',
+                'warning':  '<i class="bi bi-exclamation-triangle-fill text-warning mt-1"></i>',
+                'info':     '<i class="bi bi-info-circle-fill text-info mt-1"></i>',
+            };
+            const items = data.alerts.map(a => `
+                <li class="list-group-item px-3 py-2" id="alert-item-${a.id}">
+                    <div class="d-flex align-items-start gap-2">
+                        ${icons[a.severity] || icons['info']}
+                        <div class="flex-grow-1">
+                            <div class="small fw-semibold">${a.device_name}</div>
+                            <div class="text-muted" style="font-size:0.8rem;">${a.message}</div>
+                            <div class="text-muted" style="font-size:0.75rem;">${a.created_at}</div>
+                        </div>
+                        <button class="btn btn-outline-success btn-sm py-0 px-1 resolve-alert-btn"
+                                data-alert-id="${a.id}" title="Закрыть алерт">
+                            <i class="bi bi-check-lg"></i>
+                        </button>
+                    </div>
+                </li>`).join('');
+            alertsList.innerHTML = `<ul class="list-group list-group-flush">${items}</ul>`;
+            // Переподписать кнопки «Закрыть»
+            alertsList.querySelectorAll('.resolve-alert-btn').forEach(attachResolveBtn);
+        }
+    }
+
+    // --- 4. Обновить badge алертов в navbar ---
     const badge = document.getElementById('nav-alert-badge');
     if (data.active_alerts > 0) {
-        if (badge) badge.textContent = data.active_alerts;
-        else {
+        if (badge) {
+            badge.textContent = data.active_alerts;
+        } else {
             const link = document.getElementById('nav-alerts-link');
             if (link) {
                 const b = document.createElement('span');
