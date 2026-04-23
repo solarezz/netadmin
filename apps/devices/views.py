@@ -214,6 +214,9 @@ class ConnectedDevicesView(LoginRequiredMixin, View):
         if 'mikrotik' not in device.device_type:
             return JsonResponse({'error': 'Только для MikroTik'}, status=400)
 
+        if device.status == DeviceStatus.OFFLINE:
+            return JsonResponse({'error': 'Устройство недоступно (offline)'}, status=503)
+
         try:
             from services.mikrotik_manager import MikroTikManager
             manager = MikroTikManager(device)

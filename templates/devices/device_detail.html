@@ -242,9 +242,13 @@ function loadConnected() {
         '<div class="spinner-border spinner-border-sm text-primary me-2"></div>Загрузка...</td></tr>';
     if (btn) btn.disabled = true;
 
-    fetch("{% url 'device-connected' device.pk %}")
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+
+    fetch("{% url 'device-connected' device.pk %}", { signal: controller.signal })
         .then(r => r.json())
         .then(data => {
+            clearTimeout(timer);
             if (data.error) {
                 errEl.textContent = data.error;
                 errEl.style.display = 'block';
@@ -269,7 +273,10 @@ function loadConnected() {
                 </tr>`).join('');
         })
         .catch(e => {
-            errEl.textContent = 'Ошибка запроса: ' + e;
+            clearTimeout(timer);
+            errEl.textContent = e.name === 'AbortError'
+                ? 'Превышено время ожидания (15 сек). Устройство недоступно или отвечает слишком долго.'
+                : 'Ошибка: ' + e;
             errEl.style.display = 'block';
             tbody.innerHTML = '';
         })
