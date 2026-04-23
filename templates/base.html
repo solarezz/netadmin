@@ -60,6 +60,14 @@
                         <li class="nav-item">
                             <span class="nav-link text-light">
                                 <i class="bi bi-person-circle"></i> {{ user.username }}
+                                {% if user_role %}
+                                <span class="badge ms-1
+                                    {% if user_role == 'admin' %}bg-danger
+                                    {% elif user_role == 'operator' %}bg-warning text-dark
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ user_role }}
+                                </span>
+                                {% endif %}
                             </span>
                         </li>
                         <li class="nav-item">

@@ -1,6 +1,7 @@
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
+from apps.accounts.mixins import OperatorRequiredMixin
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
@@ -48,7 +49,7 @@ class DeviceDetailView(LoginRequiredMixin, DetailView):
         return ctx
 
 
-class DeviceCreateView(LoginRequiredMixin, CreateView):
+class DeviceCreateView(OperatorRequiredMixin, LoginRequiredMixin, CreateView):
     model = Device
     template_name = 'devices/device_form.html'
     fields = ['name', 'device_type', 'ip_address', 'ssh_port',
@@ -73,7 +74,7 @@ class DeviceCreateView(LoginRequiredMixin, CreateView):
         return redirect(self.success_url)
 
 
-class DeviceUpdateView(LoginRequiredMixin, UpdateView):
+class DeviceUpdateView(OperatorRequiredMixin, LoginRequiredMixin, UpdateView):
     model = Device
     template_name = 'devices/device_form.html'
     fields = ['name', 'device_type', 'ip_address', 'ssh_port',
@@ -86,13 +87,13 @@ class DeviceUpdateView(LoginRequiredMixin, UpdateView):
         return ctx
 
 
-class DeviceDeleteView(LoginRequiredMixin, DeleteView):
+class DeviceDeleteView(OperatorRequiredMixin, LoginRequiredMixin, DeleteView):
     model = Device
     template_name = 'devices/device_confirm_delete.html'
     success_url = reverse_lazy('device-list')
 
 
-class DeviceExecuteView(LoginRequiredMixin, View):
+class DeviceExecuteView(OperatorRequiredMixin, LoginRequiredMixin, View):
     def get(self, request, pk):
         device = get_object_or_404(Device, pk=pk)
         suggested_commands = self._get_suggested_commands(device.device_type)

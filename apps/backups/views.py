@@ -2,6 +2,7 @@ import hashlib
 import difflib
 from django.views.generic import ListView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
+from apps.accounts.mixins import OperatorRequiredMixin
 from django.contrib import messages
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import ConfigBackup
@@ -29,7 +30,7 @@ class BackupListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class BackupCreateView(LoginRequiredMixin, View):
+class BackupCreateView(OperatorRequiredMixin, LoginRequiredMixin, View):
     def post(self, request, device_pk):
         device = get_object_or_404(Device, pk=device_pk)
         try:
