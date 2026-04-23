@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Сравнение бэкапов{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'backup-list' %}" class="text-muted text-decoration-none small">
+        <i class="bi bi-arrow-left"></i> Назад к бэкапам
+    </a>
+    <h4 class="fw-bold mt-1">
+        <i class="bi bi-subtract text-info"></i> Сравнение конфигураций
+    </h4>
+    <p class="text-muted">
+        <strong>{{ backup1.device.name }}</strong> —
+        <span class="text-danger">{{ backup1.created_at|date:"d.m.Y H:i" }}</span>
+        vs
+        <span class="text-success">{{ backup2.created_at|date:"d.m.Y H:i" }}</span>
+    </p>
+</div>
+
+{% if diff_lines %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-dark text-white py-2 d-flex gap-4">
+        <small><span class="text-danger">— Удалено</span></small>
+        <small><span class="text-success">+ Добавлено</span></small>
+        <small class="text-muted">Без изменений</small>
+    </div>
+    <div class="card-body p-0">
+        <pre style="background:#1e1e1e; color:#c9d1d9; font-family:'Courier New',monospace; font-size:0.8rem; margin:0; padding:1rem; overflow-x:auto; border-radius:0 0 0.375rem 0.375rem;">{% for line in diff_lines %}<span class="diff-line {% if line.0 == '+' and not line.startswith('+++') %}diff-add{% elif line.0 == '-' and not line.startswith('---') %}diff-del{% elif line.startswith('@@') %}diff-hunk{% endif %}">{{ line }}
+</span>{% endfor %}</pre>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle-fill"></i> Конфигурации идентичны — изменений нет.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.diff-add { background: #1a3d1a; color: #56d364; display: block; }
+.diff-del { background: #3d1a1a; color: #ff7b72; display: block; }
+.diff-hunk { background: #1a2a3d; color: #79c0ff; display: block; }
+</style>
+{% endblock %}

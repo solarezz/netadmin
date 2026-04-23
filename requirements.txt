@@ -1,0 +1,5 @@
+Django>=4.2,<5.0
+paramiko>=3.3.0
+pysnmp>=4.4.12
+gunicorn>=21.2.0
+python-dotenv>=1.0.0

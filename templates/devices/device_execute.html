@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}Выполнение команд — {{ device.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="{% url 'device-detail' device.pk %}" class="text-muted text-decoration-none small">
+            <i class="bi bi-arrow-left"></i> {{ device.name }}
+        </a>
+        <h4 class="fw-bold mb-0 mt-1">
+            <i class="bi bi-terminal text-success"></i> Выполнение команд
+        </h4>
+    </div>
+    <div>
+        <span class="badge bg-{{ device.get_status_color }} me-2">{{ device.get_status_display }}</span>
+        <code>{{ device.ip_address }}</code>
+        <span class="badge bg-light text-dark border ms-2">{{ device.get_device_type_display }}</span>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <!-- Быстрые команды -->
+        {% if suggested_commands %}
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white border-0 py-2">
+                <small class="text-muted fw-semibold">БЫСТРЫЕ КОМАНДЫ</small>
+            </div>
+            <div class="card-body py-2">
+                <div class="d-flex flex-wrap gap-2">
+                    {% for cmd in suggested_commands %}
+                    <button class="btn btn-outline-secondary btn-sm quick-cmd" data-cmd="{{ cmd }}">
+                        <code>{{ cmd }}</code>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Ввод команды -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <form id="cmd-form">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark text-success font-monospace">$</span>
+                        <input type="text" id="cmd-input" class="form-control font-monospace"
+                               placeholder="Введите команду..." autocomplete="off" autofocus>
+                        <button type="submit" class="btn btn-success" id="btn-exec">
+                            <i class="bi bi-play-fill"></i> Выполнить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Область вывода (терминал) -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center py-2"
+                 style="background:#1e1e1e; border:0;">
+                <small class="text-muted font-monospace">OUTPUT</small>
+                <button class="btn btn-link btn-sm text-muted p-0" id="btn-clear" title="Очистить">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div id="output-area"
+                 style="background:#1e1e1e; color:#00ff41; font-family:'Courier New',monospace;
+                        font-size:0.85rem; padding:1rem; min-height:300px; max-height:600px;
+                        overflow-y:auto; border-radius:0 0 0.375rem 0.375rem; white-space:pre-wrap;">
+                <span class="text-muted">Готов к работе. Выберите команду или введите вручную.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- История команд -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history text-secondary"></i> История</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="history-list">
+                    {% for log in recent_commands %}
+                    <li class="list-group-item px-3 py-2 history-item" data-cmd="{{ log.command }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <code class="small text-truncate" style="max-width:170px;" title="{{ log.command }}">{{ log.command }}</code>
+                            {% if log.success %}
+                                <i class="bi bi-check-circle text-success ms-1 flex-shrink-0"></i>
+                            {% else %}
+                                <i class="bi bi-x-circle text-danger ms-1 flex-shrink-0"></i>
+                            {% endif %}
+                        </div>
+                        <div class="text-muted" style="font-size:0.7rem;">{{ log.executed_at|date:"d.m H:i:s" }}</div>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center text-muted small py-3">История пуста</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+const executeUrl = '{% url "device-execute" device.pk %}';
+const outputArea = document.getElementById('output-area');
+const cmdInput = document.getElementById('cmd-input');
+const btnExec = document.getElementById('btn-exec');
+
+function runCommand(cmd) {
+    if (!cmd.trim()) return;
+    cmdInput.value = cmd;
+    outputArea.textContent = `$ ${cmd}\n\nВыполняю...`;
+    btnExec.disabled = true;
+    btnExec.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    fetch(executeUrl, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `command=${encodeURIComponent(cmd)}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        outputArea.textContent = `$ ${cmd}\n\n${data.output || '(нет вывода)'}`;
+        if (!data.success) {
+            outputArea.style.color = '#ff6b6b';
+        } else {
+            outputArea.style.color = '#00ff41';
+        }
+        outputArea.scrollTop = outputArea.scrollHeight;
+        addToHistory(cmd, data.success);
+    })
+    .catch(err => {
+        outputArea.textContent = `$ ${cmd}\n\nОшибка связи: ${err}`;
+        outputArea.style.color = '#ff6b6b';
+    })
+    .finally(() => {
+        btnExec.disabled = false;
+        btnExec.innerHTML = '<i class="bi bi-play-fill"></i> Выполнить';
+    });
+}
+
+function addToHistory(cmd, success) {
+    const list = document.getElementById('history-list');
+    const emptyItem = list.querySelector('.text-muted');
+    if (emptyItem && emptyItem.textContent.trim() === 'История пуста') {
+        list.innerHTML = '';
+    }
+    const now = new Date();
+    const timeStr = now.toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const li = document.createElement('li');
+    li.className = 'list-group-item px-3 py-2 history-item';
+    li.dataset.cmd = cmd;
+    li.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+            <code class="small text-truncate" style="max-width:170px;" title="${cmd}">${cmd}</code>
+            <i class="bi ${success ? 'bi-check-circle text-success' : 'bi-x-circle text-danger'} ms-1 flex-shrink-0"></i>
+        </div>
+        <div class="text-muted" style="font-size:0.7rem;">${timeStr}</div>`;
+    list.prepend(li);
+    li.addEventListener('click', () => runCommand(li.dataset.cmd));
+}
+
+// Форма
+document.getElementById('cmd-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    runCommand(cmdInput.value);
+});
+
+// Быстрые команды
+document.querySelectorAll('.quick-cmd').forEach(btn => {
+    btn.addEventListener('click', () => runCommand(btn.dataset.cmd));
+});
+
+// История — клик
+document.querySelectorAll('.history-item').forEach(item => {
+    item.addEventListener('click', () => runCommand(item.dataset.cmd));
+});
+
+// Очистить
+document.getElementById('btn-clear').addEventListener('click', () => {
+    outputArea.textContent = 'Готов к работе.';
+    outputArea.style.color = '#00ff41';
+    cmdInput.value = '';
+    cmdInput.focus();
+});
+</script>
+{% endblock %}

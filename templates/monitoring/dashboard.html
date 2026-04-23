@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-speedometer2 text-primary"></i> Dashboard</h4>
+    <button class="btn btn-outline-primary btn-sm" id="btn-check-all">
+        <i class="bi bi-arrow-clockwise"></i> Обновить статусы
+    </button>
+</div>
+
+<!-- Карточки счётчики -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-secondary">{{ total_devices }}</div>
+                <div class="text-muted small">Всего устройств</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3 border-start border-success border-3">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-success">{{ online_count }}</div>
+                <div class="text-muted small">Online</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3 border-start border-danger border-3">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-danger">{{ offline_count }}</div>
+                <div class="text-muted small">Offline</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3 border-start border-warning border-3">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-warning">{{ warning_count }}</div>
+                <div class="text-muted small">Предупреждения</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Таблица устройств -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-router text-primary"></i> Устройства</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:30px"></th>
+                                <th>Имя</th>
+                                <th>Тип</th>
+                                <th>IP-адрес</th>
+                                <th>Расположение</th>
+                                <th>Uptime</th>
+                                <th>Последний ответ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for device in devices %}
+                            <tr class="cursor-pointer"
+                                data-device-id="{{ device.pk }}"
+                                onclick="location.href='{% url 'device-detail' device.pk %}'">
+                                <td>
+                                    <span class="badge status-dot bg-{{ device.get_status_color }} rounded-circle p-1"
+                                          title="{{ device.get_status_display }}">
+                                        &nbsp;
+                                    </span>
+                                </td>
+                                <td class="fw-semibold">{{ device.name }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ device.get_device_type_display }}</span></td>
+                                <td><code>{{ device.ip_address }}</code></td>
+                                <td class="text-muted small">{{ device.location|default:"—" }}</td>
+                                <td class="small device-uptime">{{ device.uptime|default:"—" }}</td>
+                                <td class="small text-muted device-last-seen">
+                                    {% if device.last_seen %}{{ device.last_seen|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    Нет устройств. <a href="{% url 'device-add' %}">Добавить</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Алерты и график -->
+    <div class="col-lg-4">
+        <!-- Алерты -->
+        <div class="card border-0 shadow-sm mb-3" id="alerts">
+            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">
+                    <i class="bi bi-exclamation-triangle text-danger"></i> Активные алерты
+                    {% if active_alerts_count %}
+                    <span class="badge bg-danger ms-1">{{ active_alerts_count }}</span>
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="alerts-list">
+                    {% for alert in recent_alerts %}
+                    <li class="list-group-item px-3 py-2" id="alert-item-{{ alert.pk }}">
+                        <div class="d-flex align-items-start gap-2">
+                            {% if alert.severity == 'critical' %}
+                                <i class="bi bi-x-circle-fill text-danger mt-1"></i>
+                            {% elif alert.severity == 'warning' %}
+                                <i class="bi bi-exclamation-triangle-fill text-warning mt-1"></i>
+                            {% else %}
+                                <i class="bi bi-info-circle-fill text-info mt-1"></i>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <div class="small fw-semibold">{{ alert.device.name }}</div>
+                                <div class="text-muted" style="font-size:0.8rem;">{{ alert.message }}</div>
+                                <div class="text-muted" style="font-size:0.75rem;">{{ alert.created_at|date:"d.m H:i" }}</div>
+                            </div>
+                            <button class="btn btn-outline-success btn-sm py-0 px-1 resolve-alert-btn"
+                                    data-alert-id="{{ alert.pk }}" title="Закрыть алерт">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center text-success py-3" id="no-alerts-msg">
+                        <i class="bi bi-check-circle-fill"></i> Всё в порядке
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- График -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-pie-chart text-primary"></i> Статус устройств</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" height="180"></canvas>
+            </div>
+        </div>
+    </div><!-- /col-lg-4 -->
+</div><!-- /row -->
+
+<div id="check-status" class="mt-3"></div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+// ===== PIE CHART =====
+const ctx = document.getElementById('statusChart').getContext('2d');
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Online', 'Offline', 'Warning', 'Unknown'],
+        datasets: [{
+            data: [{{ online_count }}, {{ offline_count }}, {{ warning_count }},
+                   {{ total_devices }} - {{ online_count }} - {{ offline_count }} - {{ warning_count }}],
+            backgroundColor: ['#198754', '#dc3545', '#ffc107', '#6c757d'],
+            borderWidth: 2,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+
+// ===== Кнопка "Обновить статусы" =====
+document.getElementById('btn-check-all').addEventListener('click', function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Проверяем...';
+
+    fetch('{% url "check-all-devices" %}', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('check-status').innerHTML =
+            `<div class="alert alert-success alert-dismissible fade show">
+                <i class="bi bi-check-circle"></i> ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+             </div>`;
+        setTimeout(() => location.reload(), 1500);
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Обновить статусы';
+    });
+});
+
+// ===== Закрыть алерт =====
+document.querySelectorAll('.resolve-alert-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const alertId = this.dataset.alertId;
+        fetch(`/alerts/${alertId}/resolve/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const item = document.getElementById(`alert-item-${alertId}`);
+                item.style.opacity = '0';
+                item.style.transition = 'opacity 0.3s';
+                setTimeout(() => item.remove(), 300);
+                // Обновить badge
+                const badge = document.getElementById('nav-alert-badge');
+                if (badge) {
+                    if (data.remaining > 0) badge.textContent = data.remaining;
+                    else badge.remove();
+                }
+            }
+        });
+    });
+});
+
+// ===== AUTO-REFRESH статусов каждые 30 сек =====
+const STATUS_COLORS = {
+    'online':  { dot: 'success', badge: 'bg-success' },
+    'offline': { dot: 'danger',  badge: 'bg-danger'  },
+    'warning': { dot: 'warning', badge: 'bg-warning'  },
+    'unknown': { dot: 'secondary', badge: 'bg-secondary' },
+};
+
+let countdown = 30;
+const timerEl = document.getElementById('refresh-timer');
+
+function fetchStatuses() {
+    fetch('{% url "api-devices-status" %}')
+    .then(r => r.json())
+    .then(data => {
+        data.devices.forEach(device => {
+            const row = document.querySelector(`tr[data-device-id="${device.id}"]`);
+            if (!row) return;
+            const dotEl    = row.querySelector('.status-dot');
+            const uptimeEl = row.querySelector('.device-uptime');
+            const seenEl   = row.querySelector('.device-last-seen');
+            const colors   = STATUS_COLORS[device.status] || STATUS_COLORS['unknown'];
+            if (dotEl)    { dotEl.className = `badge rounded-circle p-1 bg-${colors.dot}`; }
+            if (uptimeEl) { uptimeEl.textContent = device.uptime; }
+            if (seenEl)   { seenEl.textContent = device.last_seen; }
+        });
+        // badge алертов
+        const badge = document.getElementById('nav-alert-badge');
+        if (data.active_alerts > 0) {
+            if (badge) badge.textContent = data.active_alerts;
+        } else if (badge) {
+            badge.remove();
+        }
+        countdown = 30;
+    })
+    .catch(() => { countdown = 30; });
+}
+
+setInterval(() => {
+    countdown--;
+    if (timerEl) timerEl.textContent = countdown;
+    if (countdown <= 0) fetchStatuses();
+}, 1000);
+</script>
+{% endblock %}

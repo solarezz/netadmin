@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Удалить {{ object.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm border-danger">
+            <div class="card-header bg-danger text-white border-0">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Подтверждение удаления</h5>
+            </div>
+            <div class="card-body text-center py-4">
+                <p class="fs-5">Вы уверены, что хотите удалить устройство</p>
+                <p class="fs-4 fw-bold">{{ object.name }}</p>
+                <p class="text-muted">{{ object.ip_address }} — {{ object.get_device_type_display }}</p>
+                <p class="text-danger small">Это действие необратимо. Все логи команд и бэкапы будут удалены.</p>
+                <div class="d-flex gap-2 justify-content-center mt-3">
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Удалить
+                        </button>
+                    </form>
+                    <a href="{% url 'device-detail' object.pk %}" class="btn btn-outline-secondary">Отмена</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

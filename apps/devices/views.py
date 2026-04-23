@@ -1,0 +1,154 @@
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
+from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse_lazy
+from .models import Device, CommandLog, DeviceType, DeviceStatus
+from services import get_connector
+
+
+class DeviceListView(LoginRequiredMixin, ListView):
+    model = Device
+    template_name = 'devices/device_list.html'
+    context_object_name = 'devices'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        device_type = self.request.GET.get('type')
+        status = self.request.GET.get('status')
+        if device_type:
+            qs = qs.filter(device_type=device_type)
+        if status:
+            qs = qs.filter(status=status)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['device_types'] = DeviceType.choices
+        ctx['statuses'] = DeviceStatus.choices
+        ctx['selected_type'] = self.request.GET.get('type', '')
+        ctx['selected_status'] = self.request.GET.get('status', '')
+        return ctx
+
+
+class DeviceDetailView(LoginRequiredMixin, DetailView):
+    model = Device
+    template_name = 'devices/device_detail.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        device = self.get_object()
+        ctx['recent_commands'] = device.command_logs.all()[:20]
+        ctx['recent_backups'] = device.backups.all()[:5]
+        ctx['recent_metrics'] = device.metrics.all()[:50]
+        return ctx
+
+
+class DeviceCreateView(LoginRequiredMixin, CreateView):
+    model = Device
+    template_name = 'devices/device_form.html'
+    fields = ['name', 'device_type', 'ip_address', 'ssh_port',
+              'username', 'password', 'location', 'description']
+    success_url = reverse_lazy('device-list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Добавить устройство'
+        return ctx
+
+
+class DeviceUpdateView(LoginRequiredMixin, UpdateView):
+    model = Device
+    template_name = 'devices/device_form.html'
+    fields = ['name', 'device_type', 'ip_address', 'ssh_port',
+              'username', 'password', 'location', 'description']
+    success_url = reverse_lazy('device-list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Редактировать устройство'
+        return ctx
+
+
+class DeviceDeleteView(LoginRequiredMixin, DeleteView):
+    model = Device
+    template_name = 'devices/device_confirm_delete.html'
+    success_url = reverse_lazy('device-list')
+
+
+class DeviceExecuteView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        device = get_object_or_404(Device, pk=pk)
+        suggested_commands = self._get_suggested_commands(device.device_type)
+        return render(request, 'devices/device_execute.html', {
+            'device': device,
+            'suggested_commands': suggested_commands,
+            'recent_commands': device.command_logs.all()[:10],
+        })
+
+    def post(self, request, pk):
+        device = get_object_or_404(Device, pk=pk)
+        command = request.POST.get('command', '').strip()
+
+        if not command:
+            return JsonResponse({'error': 'Команда не может быть пустой'}, status=400)
+
+        try:
+            connector = get_connector(device)
+            with connector:
+                output = connector.execute_command(command)
+
+            CommandLog.objects.create(
+                device=device, command=command, output=output,
+                user=request.user, success=True,
+            )
+            return JsonResponse({'output': output, 'success': True})
+
+        except Exception as e:
+            CommandLog.objects.create(
+                device=device, command=command, output=str(e),
+                user=request.user, success=False,
+            )
+            return JsonResponse({'output': str(e), 'success': False}, status=500)
+
+    def _get_suggested_commands(self, device_type):
+        commands = {
+            'mikrotik_router': [
+                '/system identity print',
+                '/system resource print',
+                '/interface print',
+                '/ip address print',
+                '/ip route print',
+                '/routing ospf neighbor print',
+                '/ip firewall filter print',
+                '/ip firewall nat print',
+                '/ip dhcp-server lease print',
+                '/ip arp print',
+                '/export',
+            ],
+            'mikrotik_switch': [
+                '/system identity print',
+                '/system resource print',
+                '/interface print',
+                '/interface bridge print',
+                '/interface bridge port print',
+                '/ip address print',
+                '/ip arp print',
+                '/export',
+            ],
+            'linux': [
+                'uname -a',
+                'uptime',
+                'hostname',
+                'df -h',
+                'free -h',
+                'ip addr show',
+                'ip route show',
+                'ss -tlnp',
+                'systemctl list-units --type=service --state=running --no-pager | head -20',
+                'cat /etc/os-release',
+            ],
+        }
+        return commands.get(device_type, [])

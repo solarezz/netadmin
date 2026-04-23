@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Устройства{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-router text-primary"></i> Устройства</h4>
+    <a href="{% url 'device-add' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg"></i> Добавить устройство
+    </a>
+</div>
+
+<!-- Фильтры -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
+            <select name="type" class="form-select form-select-sm" style="width:auto;">
+                <option value="">Все типы</option>
+                {% for val, label in device_types %}
+                    <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="form-select form-select-sm" style="width:auto;">
+                <option value="">Все статусы</option>
+                {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-funnel"></i> Фильтр
+            </button>
+            {% if selected_type or selected_status %}
+                <a href="{% url 'device-list' %}" class="btn btn-link btn-sm text-muted">Сбросить</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:30px"></th>
+                        <th>Имя</th>
+                        <th>Тип</th>
+                        <th>IP-адрес</th>
+                        <th>Расположение</th>
+                        <th>Статус</th>
+                        <th>Последний ответ</th>
+                        <th style="width:160px">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device in devices %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-{{ device.get_status_color }} rounded-circle p-1" title="{{ device.get_status_display }}">&nbsp;</span>
+                        </td>
+                        <td class="fw-semibold">
+                            <a href="{% url 'device-detail' device.pk %}" class="text-decoration-none">{{ device.name }}</a>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">{{ device.get_device_type_display }}</span></td>
+                        <td><code>{{ device.ip_address }}</code></td>
+                        <td class="text-muted small">{{ device.location|default:"—" }}</td>
+                        <td>
+                            <span class="badge bg-{{ device.get_status_color }}">{{ device.get_status_display }}</span>
+                        </td>
+                        <td class="small text-muted">
+                            {% if device.last_seen %}{{ device.last_seen|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'device-detail' device.pk %}" class="btn btn-outline-secondary btn-sm" title="Детали">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'device-edit' device.pk %}" class="btn btn-outline-primary btn-sm" title="Редактировать">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'device-delete' device.pk %}" class="btn btn-outline-danger btn-sm" title="Удалить">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-router fs-2 d-block mb-2"></i>
+                            Устройства не найдены.<br>
+                            <a href="{% url 'device-add' %}">Добавьте первое устройство</a> или
+                            <a href="{% url 'device-list' %}">сбросьте фильтры</a>.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

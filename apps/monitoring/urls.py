@@ -1,0 +1,9 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.DashboardView.as_view(), name='dashboard'),
+    path('check-all/', views.CheckAllDevicesView.as_view(), name='check-all-devices'),
+    path('alerts/<int:alert_id>/resolve/', views.ResolveAlertView.as_view(), name='alert-resolve'),
+    path('api/devices/status/', views.DeviceStatusApiView.as_view(), name='api-devices-status'),
+]
