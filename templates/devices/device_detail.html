@@ -283,6 +283,15 @@ function loadConnected() {
         .finally(() => {});
 }
 
-loadConnected();
+{% if 'mikrotik' in device.device_type %}
+if ("{{ device.status }}" === "online") {
+    loadConnected();
+} else {
+    const tbody = document.getElementById('connected-tbody');
+    if (tbody) tbody.innerHTML =
+        '<tr><td colspan="6" class="text-center text-muted py-3">' +
+        '<i class="bi bi-slash-circle me-1"></i>Устройство офлайн — данные недоступны</td></tr>';
+}
+{% endif %}
 </script>
 {% endblock %}
