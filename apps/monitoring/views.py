@@ -127,7 +127,10 @@ class TopologyView(LoginRequiredMixin, TemplateView):
 
 
 class TopologyApiView(LoginRequiredMixin, View):
-    """GET /api/topology/ — узлы и рёбра для vis.js Network."""
+    """GET /api/topology/ — узлы и рёбра для vis.js Network.
+    Рёбра строятся автоматически через LLDP (/ip neighbor print) на каждом MikroTik.
+    Результат кешируется на 60 секунд чтобы не нагружать SSH при авто-обновлении.
+    """
 
     STATUS_COLORS = {
         'online':  {'background': '#28a745', 'border': '#1e7e34', 'font': '#ffffff'},
@@ -135,49 +138,75 @@ class TopologyApiView(LoginRequiredMixin, View):
         'warning': {'background': '#ffc107', 'border': '#d39e00', 'font': '#000000'},
         'unknown': {'background': '#6c757d', 'border': '#545b62', 'font': '#ffffff'},
     }
-
     SHAPES = {
         'mikrotik_router': 'diamond',
         'mikrotik_switch': 'hexagon',
         'linux':           'ellipse',
     }
 
-    EDGE_PATTERNS = [
-        ('r1', 'r2'),
-        ('r1', 'sw1'),
-        ('r2', 'sw2'),
-        ('sw1', 'srv1'),
-        ('sw2', 'srv2'),
-        ('r1', 'srv1'),
-    ]
+    _cache = {'data': None, 'ts': 0}
+    CACHE_TTL = 60
 
     def get(self, request):
+        import time
+        now = time.time()
+        if self._cache['data'] and (now - self._cache['ts']) < self.CACHE_TTL:
+            return JsonResponse(self._cache['data'])
+
         devices = list(Device.objects.all())
-        name_map = {d.name.lower(): d for d in devices}
+        ip_to_device = {str(d.ip_address): d for d in devices}
 
-        nodes = []
-        for d in devices:
-            color = self.STATUS_COLORS.get(d.status, self.STATUS_COLORS['unknown'])
-            nodes.append({
-                'id':    d.pk,
-                'label': d.name,
-                'title': f'{d.ip_address}\n{d.get_status_display()}\n{d.os_version or ""}',
-                'shape': self.SHAPES.get(d.device_type, 'ellipse'),
-                'color': color,
-                'url':   f'/devices/{d.pk}/',
-                'status': d.status,
-            })
+        nodes = [self._make_node(d) for d in devices]
+        edges = self._discover_edges(devices, ip_to_device)
 
-        edges = []
-        edge_id = 1
-        for pattern_a, pattern_b in self.EDGE_PATTERNS:
-            node_a = next((d for name, d in name_map.items() if pattern_a in name), None)
-            node_b = next((d for name, d in name_map.items() if pattern_b in name), None)
-            if node_a and node_b:
-                edges.append({'id': edge_id, 'from': node_a.pk, 'to': node_b.pk})
-                edge_id += 1
+        data = {'nodes': nodes, 'edges': edges}
+        self._cache['data'] = data
+        self._cache['ts'] = now
+        return JsonResponse(data)
 
-        return JsonResponse({'nodes': nodes, 'edges': edges})
+    def _make_node(self, d):
+        return {
+            'id':    d.pk,
+            'label': d.name,
+            'title': f'{d.ip_address} | {d.get_status_display()} | {d.os_version or d.get_device_type_display()}',
+            'shape': self.SHAPES.get(d.device_type, 'ellipse'),
+            'color': self.STATUS_COLORS.get(d.status, self.STATUS_COLORS['unknown']),
+            'url':   f'/devices/{d.pk}/',
+            'status': d.status,
+        }
+
+    def _discover_edges(self, devices, ip_to_device):
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from services.mikrotik_manager import MikroTikManager
+
+        online_mikrotik = [
+            d for d in devices
+            if 'mikrotik' in d.device_type and d.status == 'online'
+        ]
+
+        edge_set = set()
+
+        def fetch(device):
+            try:
+                with MikroTikManager(device) as mgr:
+                    return device, mgr.get_neighbors_structured()
+            except Exception:
+                return device, []
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = {pool.submit(fetch, d): d for d in online_mikrotik}
+            for future in as_completed(futures, timeout=15):
+                try:
+                    device, neighbors = future.result()
+                    for n in neighbors:
+                        neighbor = ip_to_device.get(n['address'])
+                        if neighbor:
+                            key = tuple(sorted([device.pk, neighbor.pk]))
+                            edge_set.add(key)
+                except Exception:
+                    pass
+
+        return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(edge_set)]
 
 
 class DeviceMetricsApiView(LoginRequiredMixin, View):

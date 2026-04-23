@@ -143,6 +143,22 @@ class MikroTikManager(DeviceConnector):
             result[m.group(1)] = m.group(2).strip('"')
         return result
 
+    def get_neighbors_structured(self) -> list:
+        output = self.execute_command('/ip neighbor print terse')
+        neighbors = []
+        for line in output.splitlines():
+            if '=' not in line:
+                continue
+            p = self._parse_terse_line(line)
+            if p.get('address'):
+                neighbors.append({
+                    'interface': p.get('interface', ''),
+                    'address':   p.get('address', ''),
+                    'identity':  p.get('identity', ''),
+                    'platform':  p.get('platform', ''),
+                })
+        return neighbors
+
     def get_dhcp_leases_structured(self) -> list:
         output = self.execute_command('/ip dhcp-server lease print terse')
         leases = []
