@@ -240,7 +240,6 @@ function loadConnected() {
     errEl.style.display = 'none';
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">' +
         '<div class="spinner-border spinner-border-sm text-primary me-2"></div>Загрузка...</td></tr>';
-    if (btn) btn.disabled = true;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
