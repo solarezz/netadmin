@@ -122,6 +122,64 @@ class DeviceStatusApiView(LoginRequiredMixin, View):
         })
 
 
+class TopologyView(LoginRequiredMixin, TemplateView):
+    template_name = 'monitoring/topology.html'
+
+
+class TopologyApiView(LoginRequiredMixin, View):
+    """GET /api/topology/ — узлы и рёбра для vis.js Network."""
+
+    STATUS_COLORS = {
+        'online':  {'background': '#28a745', 'border': '#1e7e34', 'font': '#ffffff'},
+        'offline': {'background': '#dc3545', 'border': '#bd2130', 'font': '#ffffff'},
+        'warning': {'background': '#ffc107', 'border': '#d39e00', 'font': '#000000'},
+        'unknown': {'background': '#6c757d', 'border': '#545b62', 'font': '#ffffff'},
+    }
+
+    SHAPES = {
+        'mikrotik_router': 'diamond',
+        'mikrotik_switch': 'hexagon',
+        'linux':           'ellipse',
+    }
+
+    EDGE_PATTERNS = [
+        ('r1', 'r2'),
+        ('r1', 'sw1'),
+        ('r2', 'sw2'),
+        ('sw1', 'srv1'),
+        ('sw2', 'srv2'),
+        ('r1', 'srv1'),
+    ]
+
+    def get(self, request):
+        devices = list(Device.objects.all())
+        name_map = {d.name.lower(): d for d in devices}
+
+        nodes = []
+        for d in devices:
+            color = self.STATUS_COLORS.get(d.status, self.STATUS_COLORS['unknown'])
+            nodes.append({
+                'id':    d.pk,
+                'label': d.name,
+                'title': f'{d.ip_address}\n{d.get_status_display()}\n{d.os_version or ""}',
+                'shape': self.SHAPES.get(d.device_type, 'ellipse'),
+                'color': color,
+                'url':   f'/devices/{d.pk}/',
+                'status': d.status,
+            })
+
+        edges = []
+        edge_id = 1
+        for pattern_a, pattern_b in self.EDGE_PATTERNS:
+            node_a = next((d for name, d in name_map.items() if pattern_a in name), None)
+            node_b = next((d for name, d in name_map.items() if pattern_b in name), None)
+            if node_a and node_b:
+                edges.append({'id': edge_id, 'from': node_a.pk, 'to': node_b.pk})
+                edge_id += 1
+
+        return JsonResponse({'nodes': nodes, 'edges': edges})
+
+
 class DeviceMetricsApiView(LoginRequiredMixin, View):
     """
     GET /api/devices/<pk>/metrics/

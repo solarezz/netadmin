@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Топология сети{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Топология сети</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+#topology-container {
+    width: 100%;
+    height: 560px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    background: #f8f9fa;
+}
+.legend-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0"><i class="bi bi-diagram-3 text-primary"></i> Топология сети</h4>
+    <div class="d-flex align-items-center gap-3">
+        <div class="small text-muted">
+            <span class="legend-dot bg-success"></span>Online
+            <span class="legend-dot bg-danger ms-2"></span>Offline
+            <span class="legend-dot bg-warning ms-2"></span>Warning
+            <span class="legend-dot bg-secondary ms-2"></span>Unknown
+        </div>
+        <span class="text-muted small" id="topo-timer">
+            <i class="bi bi-arrow-repeat"></i> <span id="topo-countdown">30</span>с
+        </span>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-2">
+        <div id="topology-container"></div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 py-2">
+                <small class="fw-bold text-muted">ЛЕГЕНДА — ФИГУРЫ</small>
+            </div>
+            <div class="card-body py-2">
+                <div class="d-flex gap-3 flex-wrap small">
+                    <span><i class="bi bi-diamond-fill text-primary"></i> MikroTik Router</span>
+                    <span><i class="bi bi-hexagon-fill text-info"></i> MikroTik Switch</span>
+                    <span><i class="bi bi-circle-fill text-secondary"></i> Linux Server</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 py-2">
+                <small class="fw-bold text-muted">ПОДСЕТИ</small>
+            </div>
+            <div class="card-body py-2">
+                <div class="d-flex gap-4 flex-wrap small text-muted">
+                    <span><code>10.1.1.0/24</code> — Management</span>
+                    <span><code>10.1.10.0/24</code> — LAN 1 этаж</span>
+                    <span><code>10.1.20.0/24</code> — LAN 2 этаж</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+const TOPOLOGY_URL = "{% url 'api-topology' %}";
+let network = null;
+
+function buildTopology(data) {
+    const nodes = new vis.DataSet(data.nodes);
+    const edges = new vis.DataSet(data.edges);
+
+    const container = document.getElementById('topology-container');
+    const options = {
+        nodes: {
+            size: 28,
+            font: { size: 13, face: 'system-ui' },
+            borderWidth: 2,
+        },
+        edges: {
+            width: 2,
+            color: { color: '#adb5bd', highlight: '#495057' },
+            smooth: { type: 'continuous' },
+        },
+        physics: {
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: { gravitationalConstant: -60, springLength: 140 },
+            stabilization: { iterations: 200 },
+        },
+        interaction: { hover: true, tooltipDelay: 100 },
+    };
+
+    if (network) {
+        network.setData({ nodes, edges });
+    } else {
+        network = new vis.Network(container, { nodes, edges }, options);
+        network.on('click', params => {
+            if (params.nodes.length) {
+                const node = data.nodes.find(n => n.id === params.nodes[0]);
+                if (node && node.url) window.location.href = node.url;
+            }
+        });
+        network.on('hoverNode', () => {
+            container.style.cursor = 'pointer';
+        });
+        network.on('blurNode', () => {
+            container.style.cursor = 'default';
+        });
+    }
+}
+
+function updateColors(data) {
+    if (!network) return;
+    const updates = data.nodes.map(n => ({ id: n.id, color: n.color }));
+    network.body.data.nodes.update(updates);
+}
+
+function loadTopology(initial = false) {
+    fetch(TOPOLOGY_URL)
+        .then(r => r.json())
+        .then(data => {
+            if (initial) buildTopology(data);
+            else updateColors(data);
+        })
+        .catch(() => {});
+}
+
+// Первая загрузка
+loadTopology(true);
+
+// Авто-обновление цветов каждые 30 сек
+let countdown = 30;
+setInterval(() => {
+    countdown--;
+    document.getElementById('topo-countdown').textContent = countdown;
+    if (countdown <= 0) {
+        countdown = 30;
+        loadTopology(false);
+    }
+}, 1000);
+</script>
+{% endblock %}
