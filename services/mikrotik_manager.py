@@ -135,27 +135,32 @@ class MikroTikManager(DeviceConnector):
             return round((1 - free_mem / total_mem) * 100, 1)
         return 0.0
 
+    @staticmethod
+    def _parse_terse_line(line: str) -> dict:
+        import re
+        result = {}
+        for m in re.finditer(r'([\w-]+)=("(?:[^"\\]|\\.)*"|[^\s]*)', line):
+            result[m.group(1)] = m.group(2).strip('"')
+        return result
+
     def get_dhcp_leases_structured(self) -> list:
         output = self.execute_command('/ip dhcp-server lease print terse')
         leases = []
         for line in output.splitlines():
             if '=' not in line:
                 continue
-            parts = {}
-            for token in line.split():
-                if '=' in token:
-                    k, v = token.split('=', 1)
-                    parts[k] = v.strip('"')
-            if 'address' in parts:
-                leases.append({
-                    'ip': parts.get('address', ''),
-                    'mac': parts.get('mac-address', ''),
-                    'hostname': parts.get('host-name', ''),
-                    'server': parts.get('server', ''),
-                    'status': parts.get('status', ''),
-                    'last_seen': parts.get('last-seen', ''),
-                    'source': 'dhcp',
-                })
+            p = self._parse_terse_line(line)
+            if not p.get('address'):
+                continue
+            leases.append({
+                'ip': p.get('address', ''),
+                'mac': p.get('mac-address', ''),
+                'hostname': p.get('host-name', ''),
+                'server': p.get('server', ''),
+                'status': p.get('status', ''),
+                'last_seen': p.get('last-seen', ''),
+                'source': 'dhcp',
+            })
         return leases
 
     def get_arp_table_structured(self) -> list:
@@ -164,21 +169,18 @@ class MikroTikManager(DeviceConnector):
         for line in output.splitlines():
             if '=' not in line:
                 continue
-            parts = {}
-            for token in line.split():
-                if '=' in token:
-                    k, v = token.split('=', 1)
-                    parts[k] = v.strip('"')
-            if 'address' in parts and 'mac-address' in parts:
-                entries.append({
-                    'ip': parts.get('address', ''),
-                    'mac': parts.get('mac-address', ''),
-                    'hostname': '',
-                    'interface': parts.get('interface', ''),
-                    'status': 'dynamic' if 'dynamic=yes' in line else 'static',
-                    'last_seen': '',
-                    'source': 'arp',
-                })
+            p = self._parse_terse_line(line)
+            if not p.get('address') or not p.get('mac-address'):
+                continue
+            entries.append({
+                'ip': p.get('address', ''),
+                'mac': p.get('mac-address', ''),
+                'hostname': '',
+                'interface': p.get('interface', ''),
+                'status': p.get('dynamic', 'no') == 'yes' and 'dynamic' or 'static',
+                'last_seen': '',
+                'source': 'arp',
+            })
         return entries
 
     def _parse_memory(self, mem_str: str) -> float:
