@@ -30,19 +30,43 @@ class LinuxManager(DeviceConnector):
         return output + errors if errors else output
 
     def get_running_config(self) -> str:
-        configs = []
+        timestamp = self.execute_command('date +%Y%m%d_%H%M%S').strip()
+        archive = f'/tmp/etc_backup_{timestamp}.tar.gz'
+
+        # Создаём архив /etc на удалённом сервере
+        result = self.execute_command(
+            f'sudo tar -czf {archive} /etc 2>/dev/null && echo BACKUP_OK || echo BACKUP_FAIL'
+        )
+
+        lines = []
+        if 'BACKUP_OK' in result:
+            size = self.execute_command(f'du -sh {archive} | cut -f1').strip()
+            lines.append(f'# Архив /etc: {archive}')
+            lines.append(f'# Размер: {size}  |  Создан: {timestamp}')
+            lines.append(f'# Сервер: {self.device.ip_address} ({self.device.name})')
+            lines.append('')
+        else:
+            lines.append('# Архивирование /etc не удалось (нет sudo?), собираем файлы вручную')
+            lines.append('')
+
+        # Всегда добавляем текст ключевых файлов для diff в веб-интерфейсе
         config_files = [
-            ('/etc/hostname', 'Hostname'),
-            ('/etc/netplan/*.yaml', 'Netplan (сеть)'),
-            ('/etc/network/interfaces', 'Network interfaces'),
-            ('/etc/ssh/sshd_config', 'SSH config'),
-            ('/etc/fstab', 'Disk mounts'),
+            ('/etc/hostname',          'Hostname'),
+            ('/etc/hosts',             'Hosts'),
+            ('/etc/netplan/*.yaml',    'Netplan'),
+            ('/etc/network/interfaces','Network interfaces'),
+            ('/etc/ssh/sshd_config',   'SSH config'),
+            ('/etc/fstab',             'Fstab'),
+            ('/etc/crontab',           'Crontab'),
         ]
         for path, label in config_files:
-            output = self.execute_command(f'cat {path} 2>/dev/null')
-            if output.strip():
-                configs.append(f"### {label} ({path}) ###\n{output}")
-        return '\n\n'.join(configs) if configs else "Конфигурационные файлы не найдены"
+            content = self.execute_command(f'cat {path} 2>/dev/null')
+            if content.strip():
+                lines.append(f'### {label} ({path}) ###')
+                lines.append(content)
+                lines.append('')
+
+        return '\n'.join(lines) if lines else 'Конфигурационные файлы не найдены'
 
     def get_device_info(self) -> dict:
         return {
