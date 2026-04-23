@@ -46,10 +46,11 @@
                         <th>Имя</th>
                         <th>Тип</th>
                         <th>IP-адрес</th>
-                        <th>Расположение</th>
+                        <th>Модель</th>
+                        <th>Версия ОС</th>
                         <th>Статус</th>
                         <th>Последний ответ</th>
-                        <th style="width:160px">Действия</th>
+                        <th style="width:130px">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -63,7 +64,20 @@
                         </td>
                         <td><span class="badge bg-light text-dark border">{{ device.get_device_type_display }}</span></td>
                         <td><code>{{ device.ip_address }}</code></td>
-                        <td class="text-muted small">{{ device.location|default:"—" }}</td>
+                        <td class="small text-muted">
+                            {% if device.model %}
+                                {{ device.model }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="small" style="max-width:180px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;" title="{{ device.os_version }}">
+                            {% if device.os_version %}
+                                {{ device.os_version|truncatechars:30 }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <span class="badge bg-{{ device.get_status_color }}">{{ device.get_status_display }}</span>
                         </td>
@@ -84,7 +98,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
+                        <td colspan="9" class="text-center py-5 text-muted">
                             <i class="bi bi-router fs-2 d-block mb-2"></i>
                             Устройства не найдены.<br>
                             <a href="{% url 'device-add' %}">Добавьте первое устройство</a> или
