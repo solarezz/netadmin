@@ -33,20 +33,15 @@ class LinuxManager(DeviceConnector):
         timestamp = self.execute_command('date +%Y%m%d_%H%M%S').strip()
         archive = f'/tmp/etc_backup_{timestamp}.tar.gz'
 
-        # Создаём архив /etc на удалённом сервере
-        result = self.execute_command(
-            f'sudo tar -czf {archive} /etc 2>/dev/null && echo BACKUP_OK || echo BACKUP_FAIL'
-        )
+        # Создаём архив /etc (без sudo — большинство файлов читаются обычным пользователем)
+        self.execute_command(f'tar -czf {archive} /etc 2>/dev/null; true')
+        size = self.execute_command(f'du -sh {archive} 2>/dev/null | cut -f1').strip()
 
         lines = []
-        if 'BACKUP_OK' in result:
-            size = self.execute_command(f'du -sh {archive} | cut -f1').strip()
+        if size:
             lines.append(f'# Архив /etc: {archive}')
             lines.append(f'# Размер: {size}  |  Создан: {timestamp}')
             lines.append(f'# Сервер: {self.device.ip_address} ({self.device.name})')
-            lines.append('')
-        else:
-            lines.append('# Архивирование /etc не удалось (нет sudo?), собираем файлы вручную')
             lines.append('')
 
         # Всегда добавляем текст ключевых файлов для diff в веб-интерфейсе
