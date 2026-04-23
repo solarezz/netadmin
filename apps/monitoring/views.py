@@ -183,28 +183,49 @@ class TopologyApiView(LoginRequiredMixin, View):
             d for d in devices
             if 'mikrotik' in d.device_type and d.status == 'online'
         ]
+        linux_ips = {str(d.ip_address): d for d in devices if d.device_type == 'linux'}
 
         edge_set = set()
 
         def fetch(device):
             try:
                 with MikroTikManager(device) as mgr:
-                    return device, mgr.get_neighbors_structured()
+                    neighbors = mgr.get_neighbors_structured()
+                    arp = mgr.get_arp_table_structured() if linux_ips else []
+                    return device, neighbors, arp
             except Exception:
-                return device, []
+                return device, [], []
+
+        # linux_pk -> (mikrotik_pk, is_non_mgmt) — запоминаем лучшее совпадение
+        linux_connections = {}
 
         with ThreadPoolExecutor(max_workers=4) as pool:
             futures = {pool.submit(fetch, d): d for d in online_mikrotik}
             for future in as_completed(futures, timeout=15):
                 try:
-                    device, neighbors = future.result()
+                    device, neighbors, arp_entries = future.result()
+
+                    # LLDP: MikroTik ↔ MikroTik
                     for n in neighbors:
                         neighbor = ip_to_device.get(n['address'])
                         if neighbor:
-                            key = tuple(sorted([device.pk, neighbor.pk]))
-                            edge_set.add(key)
+                            edge_set.add(tuple(sorted([device.pk, neighbor.pk])))
+
+                    # ARP: MikroTik ↔ Linux
+                    for entry in arp_entries:
+                        linux = linux_ips.get(entry['ip'])
+                        if not linux:
+                            continue
+                        is_non_mgmt = entry.get('interface', '') not in ('ether1', 'bridge')
+                        existing = linux_connections.get(linux.pk)
+                        # Предпочитаем не-mgmt интерфейс (прямое подключение к коммутатору)
+                        if not existing or (is_non_mgmt and not existing[1]):
+                            linux_connections[linux.pk] = (device.pk, is_non_mgmt)
                 except Exception:
                     pass
+
+        for linux_pk, (mikrotik_pk, _) in linux_connections.items():
+            edge_set.add(tuple(sorted([linux_pk, mikrotik_pk])))
 
         return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(edge_set)]
 
