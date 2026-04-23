@@ -78,11 +78,28 @@ class LinuxManager(DeviceConnector):
         return interfaces
 
     def get_cpu_usage(self) -> float:
-        output = self.execute_command("top -bn1 | grep 'Cpu(s)' | awk '{print $2}'")
+        # Два замера /proc/stat с паузой 1 сек — надёжно на любом Linux
+        cmd = (
+            "python3 -c \""
+            "import time; "
+            "f=open('/proc/stat'); l1=f.readline(); f.close(); "
+            "time.sleep(1); "
+            "f=open('/proc/stat'); l2=f.readline(); f.close(); "
+            "a=[int(x) for x in l1.split()[1:]]; "
+            "b=[int(x) for x in l2.split()[1:]]; "
+            "t1=sum(a); i1=a[3]; t2=sum(b); i2=b[3]; "
+            "print(round(100*(1-(i2-i1)/(t2-t1)),1)) if t2!=t1 else print(0)\""
+        )
+        output = self.execute_command(cmd)
         try:
-            return float(output.strip().replace(',', '.'))
+            return float(output.strip())
         except ValueError:
-            return 0.0
+            # Запасной вариант: vmstat
+            try:
+                out2 = self.execute_command("vmstat 1 2 | tail -1 | awk '{print 100-$15}'")
+                return float(out2.strip())
+            except Exception:
+                return 0.0
 
     def get_memory_usage(self) -> float:
         output = self.execute_command(
