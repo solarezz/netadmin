@@ -5,8 +5,10 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse_lazy
+import socket
 from .models import Device, CommandLog, DeviceType, DeviceStatus
 from services import get_connector
+from services.ping_service import ping_host
 
 
 class DeviceListView(LoginRequiredMixin, ListView):
@@ -57,6 +59,18 @@ class DeviceCreateView(LoginRequiredMixin, CreateView):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Добавить устройство'
         return ctx
+
+    def form_valid(self, form):
+        device = form.save(commit=False)
+        result = ping_host(device.ip_address, count=2, timeout=2)
+        device.status = DeviceStatus.ONLINE if result['alive'] else DeviceStatus.OFFLINE
+        device.save()
+        messages.success(
+            self.request,
+            f'Устройство «{device.name}» добавлено. '
+            f'Статус: {"Online ✓" if result["alive"] else "Offline (не отвечает на ping)"}'
+        )
+        return redirect(self.success_url)
 
 
 class DeviceUpdateView(LoginRequiredMixin, UpdateView):
@@ -113,7 +127,7 @@ class DeviceExecuteView(LoginRequiredMixin, View):
             )
             return JsonResponse({'output': str(e), 'success': False}, status=500)
 
-    def _get_suggested_commands(self, device_type):
+    def _get_suggested_commands(self, device_type):  # noqa: keep method grouping
         commands = {
             'mikrotik_router': [
                 '/system identity print',
@@ -152,3 +166,47 @@ class DeviceExecuteView(LoginRequiredMixin, View):
             ],
         }
         return commands.get(device_type, [])
+
+
+class TestConnectionView(LoginRequiredMixin, View):
+    """AJAX: проверяет ping + TCP-порт до добавления устройства."""
+
+    def post(self, request):
+        import json
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'error': 'Неверный формат запроса'}, status=400)
+
+        ip = data.get('ip', '').strip()
+        port = int(data.get('port', 22))
+        username = data.get('username', '').strip()
+
+        if not ip:
+            return JsonResponse({'error': 'IP-адрес обязателен'}, status=400)
+
+        ping_result = ping_host(ip, count=2, timeout=2)
+
+        tcp_ok = False
+        if ping_result['alive']:
+            try:
+                with socket.create_connection((ip, port), timeout=3):
+                    tcp_ok = True
+            except OSError:
+                tcp_ok = False
+
+        return JsonResponse({
+            'ping': ping_result['alive'],
+            'rtt_ms': ping_result['rtt_ms'],
+            'tcp_port': port,
+            'tcp_ok': tcp_ok,
+            'message': _build_connection_message(ping_result['alive'], tcp_ok, port),
+        })
+
+
+def _build_connection_message(ping_ok, tcp_ok, port):
+    if not ping_ok:
+        return f'Устройство не отвечает на ping'
+    if not tcp_ok:
+        return f'Ping OK, но порт {port} недоступен (SSH закрыт или неверный порт)'
+    return f'Связь установлена: ping OK, порт {port} открыт'
