@@ -233,48 +233,92 @@ document.querySelectorAll('.resolve-alert-btn').forEach(btn => {
     });
 });
 
-// ===== AUTO-REFRESH статусов каждые 30 сек =====
+// ===== AUTO-REFRESH: ping + UI update каждые 30 сек =====
 const STATUS_COLORS = {
-    'online':  { dot: 'success', badge: 'bg-success' },
-    'offline': { dot: 'danger',  badge: 'bg-danger'  },
-    'warning': { dot: 'warning', badge: 'bg-warning'  },
-    'unknown': { dot: 'secondary', badge: 'bg-secondary' },
+    'online':  'success',
+    'offline': 'danger',
+    'warning': 'warning',
+    'unknown': 'secondary',
 };
 
 let countdown = 30;
 const timerEl = document.getElementById('refresh-timer');
+let isChecking = false;
 
-function fetchStatuses() {
-    fetch('{% url "api-devices-status" %}')
+function updateUI(data) {
+    // Обновить строки таблицы
+    data.devices.forEach(device => {
+        const row = document.querySelector(`tr[data-device-id="${device.id}"]`);
+        if (!row) return;
+        const dotEl    = row.querySelector('.status-dot');
+        const uptimeEl = row.querySelector('.device-uptime');
+        const seenEl   = row.querySelector('.device-last-seen');
+        const color    = STATUS_COLORS[device.status] || 'secondary';
+        if (dotEl)    dotEl.className = `badge status-dot rounded-circle p-1 bg-${color}`;
+        if (uptimeEl) uptimeEl.textContent = device.uptime;
+        if (seenEl)   seenEl.textContent = device.last_seen;
+    });
+
+    // Обновить счётчики карточек
+    const onlineCount  = data.devices.filter(d => d.status === 'online').length;
+    const offlineCount = data.devices.filter(d => d.status === 'offline').length;
+    const warnCount    = data.devices.filter(d => d.status === 'warning').length;
+    const el = (id) => document.querySelector(id);
+    if (el('.counter-online'))  el('.counter-online').textContent  = onlineCount;
+    if (el('.counter-offline')) el('.counter-offline').textContent = offlineCount;
+    if (el('.counter-warning')) el('.counter-warning').textContent = warnCount;
+
+    // Обновить badge алертов
+    const badge = document.getElementById('nav-alert-badge');
+    if (data.active_alerts > 0) {
+        if (badge) badge.textContent = data.active_alerts;
+        else {
+            const link = document.getElementById('nav-alerts-link');
+            if (link) {
+                const b = document.createElement('span');
+                b.id = 'nav-alert-badge';
+                b.className = 'badge bg-danger rounded-pill ms-1';
+                b.textContent = data.active_alerts;
+                link.appendChild(b);
+            }
+        }
+    } else if (badge) {
+        badge.remove();
+    }
+}
+
+function autoRefresh() {
+    if (isChecking) return;
+    isChecking = true;
+
+    // Шаг 1: запустить реальный ping всех устройств
+    fetch('{% url "check-all-devices" %}', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(r => r.json())
+    .then(() => {
+        // Шаг 2: получить обновлённые статусы из БД
+        return fetch('{% url "api-devices-status" %}');
+    })
     .then(r => r.json())
     .then(data => {
-        data.devices.forEach(device => {
-            const row = document.querySelector(`tr[data-device-id="${device.id}"]`);
-            if (!row) return;
-            const dotEl    = row.querySelector('.status-dot');
-            const uptimeEl = row.querySelector('.device-uptime');
-            const seenEl   = row.querySelector('.device-last-seen');
-            const colors   = STATUS_COLORS[device.status] || STATUS_COLORS['unknown'];
-            if (dotEl)    { dotEl.className = `badge rounded-circle p-1 bg-${colors.dot}`; }
-            if (uptimeEl) { uptimeEl.textContent = device.uptime; }
-            if (seenEl)   { seenEl.textContent = device.last_seen; }
-        });
-        // badge алертов
-        const badge = document.getElementById('nav-alert-badge');
-        if (data.active_alerts > 0) {
-            if (badge) badge.textContent = data.active_alerts;
-        } else if (badge) {
-            badge.remove();
-        }
+        updateUI(data);
         countdown = 30;
+        isChecking = false;
     })
-    .catch(() => { countdown = 30; });
+    .catch(() => {
+        countdown = 30;
+        isChecking = false;
+    });
 }
 
 setInterval(() => {
-    countdown--;
-    if (timerEl) timerEl.textContent = countdown;
-    if (countdown <= 0) fetchStatuses();
+    if (!isChecking) {
+        countdown--;
+        if (timerEl) timerEl.textContent = countdown;
+    }
+    if (countdown <= 0) autoRefresh();
 }, 1000);
 </script>
 {% endblock %}
