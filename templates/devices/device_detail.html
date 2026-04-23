@@ -18,6 +18,9 @@
         <a href="http://{{ device.ip_address }}" target="_blank" class="btn btn-outline-info">
             <i class="bi bi-box-arrow-up-right"></i> WebFig
         </a>
+        <button class="btn btn-outline-primary" id="btn-connected" onclick="loadConnected()">
+            <i class="bi bi-diagram-3"></i> Подключённые
+        </button>
         {% endif %}
         <a href="{% url 'device-execute' device.pk %}" class="btn btn-success">
             <i class="bi bi-terminal"></i> Выполнить команду
@@ -128,6 +131,38 @@
     </div>
 </div>
 
+{% if 'mikrotik' in device.device_type %}
+<!-- Подключённые устройства -->
+<div class="card border-0 shadow-sm mt-4" id="connected-card" style="display:none!important">
+    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-diagram-3 text-primary"></i> Подключённые устройства <span id="connected-count" class="badge bg-primary ms-1"></span></h6>
+        <button class="btn btn-link btn-sm text-muted p-0" onclick="loadConnected()">
+            <i class="bi bi-arrow-clockwise"></i> Обновить
+        </button>
+    </div>
+    <div class="card-body p-0">
+        <div id="connected-error" class="alert alert-danger m-3" style="display:none"></div>
+        <table class="table table-sm mb-0" id="connected-table">
+            <thead class="table-light">
+                <tr>
+                    <th>IP-адрес</th>
+                    <th>MAC-адрес</th>
+                    <th>Имя хоста</th>
+                    <th>Интерфейс / Сервер</th>
+                    <th>Статус</th>
+                    <th>Последний раз</th>
+                </tr>
+            </thead>
+            <tbody id="connected-tbody">
+                <tr><td colspan="6" class="text-center text-muted py-3">
+                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>Загрузка...
+                </td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 <!-- История команд -->
 <div class="card border-0 shadow-sm mt-4">
     <div class="card-header bg-white border-0 py-3 d-flex justify-content-between">
@@ -195,5 +230,53 @@ function fetchMetrics() {
 
 fetchMetrics();
 setInterval(fetchMetrics, 30000);
+
+// ===== Подключённые устройства =====
+function loadConnected() {
+    const card  = document.getElementById('connected-card');
+    const tbody = document.getElementById('connected-tbody');
+    const errEl = document.getElementById('connected-error');
+    const btn   = document.getElementById('btn-connected');
+    const countEl = document.getElementById('connected-count');
+
+    card.style.removeProperty('display');
+    errEl.style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">' +
+        '<div class="spinner-border spinner-border-sm text-primary me-2"></div>Загрузка...</td></tr>';
+    if (btn) btn.disabled = true;
+
+    fetch("{% url 'device-connected' device.pk %}")
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                errEl.textContent = data.error;
+                errEl.style.display = 'block';
+                tbody.innerHTML = '';
+                return;
+            }
+            countEl.textContent = data.count;
+            if (!data.devices.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Нет подключённых устройств</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.devices.map(d => `
+                <tr>
+                    <td><code>${d.ip}</code></td>
+                    <td><code class="text-muted">${d.mac || '—'}</code></td>
+                    <td>${d.hostname || '<span class="text-muted">—</span>'}</td>
+                    <td class="small text-muted">${d.server || d.interface || '—'}</td>
+                    <td>${d.source === 'dhcp'
+                        ? '<span class="badge bg-success">DHCP</span>'
+                        : '<span class="badge bg-secondary">ARP</span>'}</td>
+                    <td class="small text-muted">${d.last_seen || '—'}</td>
+                </tr>`).join('');
+        })
+        .catch(e => {
+            errEl.textContent = 'Ошибка запроса: ' + e;
+            errEl.style.display = 'block';
+            tbody.innerHTML = '';
+        })
+        .finally(() => { if (btn) btn.disabled = false; });
+}
 </script>
 {% endblock %}

@@ -204,6 +204,33 @@ class TestConnectionView(LoginRequiredMixin, View):
         })
 
 
+class ConnectedDevicesView(LoginRequiredMixin, View):
+    """AJAX: возвращает список устройств из DHCP-аренды и ARP-таблицы MikroTik."""
+
+    def get(self, request, pk):
+        device = get_object_or_404(Device, pk=pk)
+
+        if 'mikrotik' not in device.device_type:
+            return JsonResponse({'error': 'Только для MikroTik'}, status=400)
+
+        try:
+            from services.mikrotik_manager import MikroTikManager
+            manager = MikroTikManager(device)
+            with manager:
+                dhcp = manager.get_dhcp_leases_structured()
+                arp = manager.get_arp_table_structured()
+
+            # Объединяем: DHCP-записи приоритетнее, ARP дополняет
+            seen_ips = {d['ip'] for d in dhcp}
+            combined = dhcp + [a for a in arp if a['ip'] not in seen_ips]
+            combined.sort(key=lambda x: x['ip'])
+
+            return JsonResponse({'devices': combined, 'count': len(combined)})
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
 def _build_connection_message(ping_ok, tcp_ok, port):
     if not ping_ok:
         return f'Устройство не отвечает на ping'

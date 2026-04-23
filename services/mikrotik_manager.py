@@ -135,6 +135,52 @@ class MikroTikManager(DeviceConnector):
             return round((1 - free_mem / total_mem) * 100, 1)
         return 0.0
 
+    def get_dhcp_leases_structured(self) -> list:
+        output = self.execute_command('/ip dhcp-server lease print terse')
+        leases = []
+        for line in output.splitlines():
+            if '=' not in line:
+                continue
+            parts = {}
+            for token in line.split():
+                if '=' in token:
+                    k, v = token.split('=', 1)
+                    parts[k] = v.strip('"')
+            if 'address' in parts:
+                leases.append({
+                    'ip': parts.get('address', ''),
+                    'mac': parts.get('mac-address', ''),
+                    'hostname': parts.get('host-name', ''),
+                    'server': parts.get('server', ''),
+                    'status': parts.get('status', ''),
+                    'last_seen': parts.get('last-seen', ''),
+                    'source': 'dhcp',
+                })
+        return leases
+
+    def get_arp_table_structured(self) -> list:
+        output = self.execute_command('/ip arp print terse')
+        entries = []
+        for line in output.splitlines():
+            if '=' not in line:
+                continue
+            parts = {}
+            for token in line.split():
+                if '=' in token:
+                    k, v = token.split('=', 1)
+                    parts[k] = v.strip('"')
+            if 'address' in parts and 'mac-address' in parts:
+                entries.append({
+                    'ip': parts.get('address', ''),
+                    'mac': parts.get('mac-address', ''),
+                    'hostname': '',
+                    'interface': parts.get('interface', ''),
+                    'status': 'dynamic' if 'dynamic=yes' in line else 'static',
+                    'last_seen': '',
+                    'source': 'arp',
+                })
+        return entries
+
     def _parse_memory(self, mem_str: str) -> float:
         mem_str = mem_str.strip()
         if 'MiB' in mem_str:

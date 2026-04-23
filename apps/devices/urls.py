@@ -9,4 +9,5 @@ urlpatterns = [
     path('<int:pk>/delete/', views.DeviceDeleteView.as_view(), name='device-delete'),
     path('<int:pk>/execute/', views.DeviceExecuteView.as_view(), name='device-execute'),
     path('api/test-connection/', views.TestConnectionView.as_view(), name='test-connection'),
+    path('<int:pk>/connected/', views.ConnectedDevicesView.as_view(), name='device-connected'),
 ]
