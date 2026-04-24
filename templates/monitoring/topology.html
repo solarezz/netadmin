@@ -17,9 +17,9 @@
     </div>
     <div class="flex gap-3">
         <div class="flex rounded-lg border border-slate-200 overflow-hidden text-sm font-medium shadow-sm">
-            <button id="t-physical" class="px-4 py-2 bg-slate-900 text-white">Physical</button>
-            <button id="t-logical" class="px-4 py-2 bg-white text-slate-600 hover:bg-slate-50 border-l border-slate-200">Logical</button>
-            <button id="t-subnet" class="px-4 py-2 bg-white text-slate-600 hover:bg-slate-50 border-l border-slate-200">Subnet</button>
+            <button class="px-4 py-2 bg-slate-900 text-white">Physical</button>
+            <button class="px-4 py-2 bg-white text-slate-600 hover:bg-slate-50 border-l border-slate-200">Logical</button>
+            <button class="px-4 py-2 bg-white text-slate-600 hover:bg-slate-50 border-l border-slate-200">Subnet</button>
         </div>
         <button class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm shadow-sm hover:bg-slate-50">
             <i class="bi bi-download"></i> Export SVG
@@ -27,12 +27,12 @@
     </div>
 </div>
 
-<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden relative" style="height:68vh;min-height:520px;">
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden relative" style="height:70vh;min-height:540px;">
     <!-- dot grid -->
     <svg class="absolute inset-0 w-full h-full z-0 pointer-events-none">
         <defs>
             <pattern id="dg" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-                <circle cx="1" cy="1" r="1" fill="#94a3b8" fill-opacity="0.35"/>
+                <circle cx="1" cy="1" r="1" fill="#94a3b8" fill-opacity="0.3"/>
             </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#dg)"/>
@@ -41,10 +41,10 @@
     <div id="topo" class="absolute inset-0 z-10"></div>
 
     <!-- stats pill -->
-    <div class="absolute top-4 left-4 z-20 bg-white/95 border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-2 text-sm select-none">
-        <span class="font-bold text-slate-900" id="cnt-nodes">— nodes</span>
+    <div class="absolute top-4 left-4 z-20 bg-white/95 border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-2 text-sm">
+        <span class="font-bold text-slate-900" id="cnt-nodes">—</span>
         <span class="text-slate-300">·</span>
-        <span class="text-slate-500" id="cnt-edges">— links</span>
+        <span class="text-slate-500" id="cnt-edges">—</span>
         <span class="text-slate-300">·</span>
         <span class="text-slate-400 text-xs">Last scan: <span id="last-scan">—</span></span>
     </div>
@@ -52,17 +52,17 @@
     <!-- zoom controls -->
     <div class="absolute top-4 right-4 z-20 flex flex-col gap-2">
         <div class="bg-white/95 border border-slate-200 rounded-lg shadow-sm flex flex-col overflow-hidden">
-            <button onclick="zoomIn()" class="p-2.5 text-slate-500 hover:bg-slate-50 border-b border-slate-100"><i class="bi bi-plus-lg"></i></button>
-            <button onclick="zoomOut()" class="p-2.5 text-slate-500 hover:bg-slate-50 border-b border-slate-100"><i class="bi bi-dash-lg"></i></button>
-            <button onclick="fitAll()" class="p-2.5 text-slate-500 hover:bg-slate-50"><i class="bi bi-fullscreen"></i></button>
+            <button onclick="zoomIn()" class="p-2.5 text-slate-500 hover:bg-slate-50 border-b border-slate-100 text-base"><i class="bi bi-plus-lg"></i></button>
+            <button onclick="zoomOut()" class="p-2.5 text-slate-500 hover:bg-slate-50 border-b border-slate-100 text-base"><i class="bi bi-dash-lg"></i></button>
+            <button onclick="fitAll()" class="p-2.5 text-slate-500 hover:bg-slate-50 text-base"><i class="bi bi-fullscreen"></i></button>
         </div>
         <button onclick="loadTopo(false)" class="bg-white/95 border border-slate-200 rounded-lg shadow-sm p-2.5 text-slate-500 hover:bg-slate-50">
-            <i class="bi bi-arrow-repeat" id="ri"></i>
+            <i class="bi bi-arrow-repeat text-base" id="ri"></i>
         </button>
     </div>
 
     <!-- loading -->
-    <div id="topo-load" class="absolute inset-0 z-30 bg-white/70 backdrop-blur-sm flex items-center justify-center">
+    <div id="topo-load" class="absolute inset-0 z-30 bg-white/80 backdrop-blur-sm flex items-center justify-center">
         <div class="flex flex-col items-center gap-3">
             <div class="w-9 h-9 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
             <p class="text-sm font-medium text-slate-600">Загрузка топологии…</p>
@@ -70,10 +70,10 @@
     </div>
 
     <!-- legend -->
-    <div class="absolute bottom-4 left-4 z-20 bg-white/95 border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-4 text-xs font-medium select-none">
-        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Online (<span id="leg-on">0</span>)</div>
-        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Warning (<span id="leg-wa">0</span>)</div>
-        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Offline (<span id="leg-off">0</span>)</div>
+    <div class="absolute bottom-4 left-4 z-20 bg-white/95 border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-4 text-xs font-medium">
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Online (<span id="leg-on">0</span>)</div>
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Warning (<span id="leg-wa">0</span>)</div>
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Offline (<span id="leg-off">0</span>)</div>
     </div>
 </div>
 {% endblock %}
@@ -82,57 +82,52 @@
 <style>
 #topo canvas { background: transparent !important; }
 .vis-tooltip {
-    font-family: 'Inter',sans-serif !important; font-size: 12px !important;
-    background: #0f172a !important; color: #e2e8f0 !important;
-    border: none !important; border-radius: 6px !important;
-    padding: 6px 10px !important; box-shadow: 0 4px 12px rgba(0,0,0,.25) !important;
+    font-family:'Inter',sans-serif !important; font-size:12px !important;
+    background:#0f172a !important; color:#e2e8f0 !important;
+    border:none !important; border-radius:6px !important;
+    padding:6px 10px !important; box-shadow:0 4px 16px rgba(0,0,0,.25) !important;
 }
 </style>
 <script>
-const URL_TOPO = "{% url 'api-topology' %}";
+const TOPO_URL = "{% url 'api-topology' %}";
 let net = null, nodesDS = null, edgesDS = null, scanAt = null;
 
 const SC = {
-    online:  { bg:'#ffffff', border:'#10b981', hi:'#ecfdf5' },
-    offline: { bg:'#ffffff', border:'#ef4444', hi:'#fef2f2' },
-    warning: { bg:'#ffffff', border:'#f59e0b', hi:'#fffbeb' },
-    unknown: { bg:'#ffffff', border:'#94a3b8', hi:'#f8fafc' },
+    online:  '#10b981',
+    offline: '#ef4444',
+    warning: '#f59e0b',
+    unknown: '#94a3b8',
 };
 
-/* ── icon drawing ── */
+/* ── Draw device icon on canvas ── */
 function drawIcon(ctx, cx, cy, type, color) {
     ctx.save();
     ctx.strokeStyle = color; ctx.fillStyle = color;
-    ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-
+    ctx.lineWidth = 1.7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (type === 'mikrotik_router') {
+        ctx.strokeRect(cx-9, cy-3, 18, 11);
         ctx.beginPath();
-        ctx.roundRect(cx-9, cy-3, 18, 11, 2);
+        ctx.moveTo(cx-4,cy-3); ctx.lineTo(cx-4,cy-10);
+        ctx.moveTo(cx+4,cy-3); ctx.lineTo(cx+4,cy-10);
         ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(cx-4, cy-3); ctx.lineTo(cx-4, cy-9);
-        ctx.moveTo(cx+4, cy-3); ctx.lineTo(cx+4, cy-9);
-        ctx.stroke();
-        ctx.beginPath(); ctx.arc(cx, cy+2, 1.6, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx,cy+3,1.6,0,Math.PI*2); ctx.fill();
     } else if (type === 'mikrotik_switch') {
-        ctx.beginPath();
-        ctx.roundRect(cx-11, cy-5, 22, 10, 2);
-        ctx.stroke();
-        [-5,0,5].forEach(dx => { ctx.beginPath(); ctx.arc(cx+dx, cy, 1.6, 0, Math.PI*2); ctx.fill(); });
+        ctx.strokeRect(cx-12, cy-5, 24, 11);
+        [-5,0,5].forEach(dx=>{ctx.beginPath();ctx.arc(cx+dx,cy+0.5,1.6,0,Math.PI*2);ctx.fill();});
     } else {
-        ctx.beginPath(); ctx.roundRect(cx-10, cy-7, 20, 7, 2); ctx.stroke();
-        ctx.beginPath(); ctx.roundRect(cx-10, cy+1, 20, 7, 2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(cx+7, cy-3.5, 1.4, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(cx+7, cy+4.5, 1.4, 0, Math.PI*2); ctx.fill();
+        ctx.strokeRect(cx-11, cy-7, 22, 7);
+        ctx.strokeRect(cx-11, cy+1,  22, 7);
+        ctx.beginPath(); ctx.arc(cx+8,cy-3.5,1.4,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx+8,cy+4.5,1.4,0,Math.PI*2); ctx.fill();
     }
     ctx.restore();
 }
 
-/* ── make vis node ── */
+/* ── Build a vis.js node object ── */
 function makeNode(n) {
-    const sc = SC[n.status] || SC.unknown;
+    const color = SC[n.status] || SC.unknown;
     const isCore = n.is_core;
-    const r = isCore ? 28 : 23;
+    const r = isCore ? 30 : 24;
 
     return {
         id: n.id,
@@ -141,99 +136,116 @@ function makeNode(n) {
         shape: 'custom',
         size: r,
         font: {
-            size: 11, face: 'Inter,sans-serif', color: '#64748b',
-            bold: { color: '#0f172a', size: 12, face: 'Inter,sans-serif' },
-            multi: 'html',
+            size: 11,
+            face: 'Inter, sans-serif',
+            color: '#64748b',
+            vadjust: 0,
         },
+        /* Closure over n so ctxRenderer always has fresh data */
         ctxRenderer({ ctx, x, y, state }) {
-            const bdr = (state.selected || state.hover) ? '#3b82f6' : (isCore ? '#0f172a' : sc.border);
             return {
                 drawNode() {
-                    // shadow
-                    ctx.shadowColor = 'rgba(15,23,42,.12)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+                    /* Shadow */
+                    ctx.shadowColor = 'rgba(15,23,42,.12)';
+                    ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+
+                    /* Main circle */
                     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
                     ctx.fillStyle = isCore ? '#0f172a' : '#ffffff';
                     ctx.fill();
+
                     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
+                    /* Border */
                     if (!isCore) {
-                        ctx.lineWidth = state.selected ? 3 : 2.5;
-                        ctx.strokeStyle = bdr;
+                        ctx.lineWidth = state.selected || state.hover ? 3 : 2.5;
+                        ctx.strokeStyle = state.selected ? '#3b82f6' : color;
                         ctx.stroke();
                     }
 
-                    const iconColor = isCore ? '#e2e8f0' : sc.border;
-                    drawIcon(ctx, x, y, n.device_type, iconColor);
+                    /* Icon */
+                    drawIcon(ctx, x, y, n.device_type, isCore ? '#e2e8f0' : color);
                 },
-                nodeDimensions: { width: r*2+4, height: r*2+4 },
+                nodeDimensions: { width: (r+4)*2, height: (r+4)*2 },
             };
         },
     };
 }
 
-/* ── make vis edge ── */
-function makeEdge(e, nodesMap) {
-    const target = nodesMap[e.to] || {};
-    const sc = SC[target.status] || SC.unknown;
-    const isOff = target.status === 'offline';
+/* ── Build a vis.js edge ── */
+function makeEdge(e, nodeMap) {
+    const tgt = nodeMap[e.to];
+    const isOff = tgt?.status === 'offline';
+    const isWarn = tgt?.status === 'warning';
     return {
         id: e.id, from: e.from, to: e.to,
         width: 1.8,
-        color: { color: isOff ? '#fca5a5' : sc.border, highlight: '#3b82f6', hover: '#94a3b8' },
         dashes: isOff,
+        color: { color: isOff ? '#fca5a5' : isWarn ? '#fcd34d' : '#cbd5e1', highlight: '#3b82f6', hover: '#94a3b8' },
         smooth: { type: 'continuous', roundness: 0.35 },
-        selectionWidth: 2,
     };
 }
 
-/* ── options ── */
+/* ── vis.js options — HIERARCHICAL layout ── */
 const OPTS = {
-    nodes: { font: { size:11, face:'Inter,sans-serif' }, margin:14 },
+    nodes: { font: { size: 11, face: 'Inter, sans-serif', color: '#64748b' }, margin: 16 },
     edges: { arrows: { to: false } },
-    physics: {
-        solver: 'repulsion',
-        repulsion: { centralGravity:.08, springLength:250, springConstant:.02, nodeDistance:260, damping:.1 },
-        stabilization: { enabled:true, iterations:400, updateInterval:30 },
+    layout: {
+        hierarchical: {
+            enabled: true,
+            direction: 'UD',          /* top → down */
+            sortMethod: 'hubsize',    /* most-connected node at top */
+            levelSeparation: 160,     /* vertical gap between levels */
+            nodeSpacing: 180,         /* horizontal gap between nodes at same level */
+            treeSpacing: 250,         /* gap between separate tree components */
+            blockShifting: true,
+            edgeMinimization: true,
+            parentCentralization: true,
+        },
     },
-    interaction: { hover:true, tooltipDelay:150, zoomSpeed:.9 },
-    layout: { improvedLayout: true },
+    physics: { enabled: false },      /* hierarchical handles positioning */
+    interaction: { hover: true, tooltipDelay: 150, zoomSpeed: 0.9, dragNodes: true, dragView: true },
 };
 
-/* ── build ── */
+/* ── Build initial network ── */
 function build(data) {
-    const nodesMap = Object.fromEntries(data.nodes.map(n => [n.id, n]));
+    const nodeMap = Object.fromEntries(data.nodes.map(n=>[n.id,n]));
     nodesDS = new vis.DataSet(data.nodes.map(makeNode));
-    edgesDS = new vis.DataSet(data.edges.map(e => makeEdge(e, nodesMap)));
+    edgesDS = new vis.DataSet(data.edges.map(e=>makeEdge(e,nodeMap)));
 
-    updateStats(data);
+    updateHUD(data);
+
     const container = document.getElementById('topo');
-    if (net) { net.setData({ nodes: nodesDS, edges: edgesDS }); return; }
+    if (net) { net.setData({nodes:nodesDS,edges:edgesDS}); return; }
 
-    net = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, OPTS);
-    net.on('click', p => {
-        if (p.nodes.length) {
-            const n = data.nodes.find(x => x.id === p.nodes[0]);
-            if (n?.url) window.location.href = n.url;
-        }
-    });
-    net.on('hoverNode', () => container.style.cursor = 'pointer');
-    net.on('blurNode',  () => container.style.cursor = 'default');
-    net.on('stabilizationIterationsDone', () => {
+    net = new vis.Network(container, {nodes:nodesDS,edges:edgesDS}, OPTS);
+    net.once('afterDrawing', () => {
         document.getElementById('topo-load').style.display = 'none';
         scanAt = Date.now();
     });
+    net.on('click', p => {
+        if (p.nodes.length) {
+            const n = data.nodes.find(x=>x.id===p.nodes[0]);
+            if (n?.url) location.href = n.url;
+        }
+    });
+    net.on('hoverNode', ()=>container.style.cursor='pointer');
+    net.on('blurNode',  ()=>container.style.cursor='default');
 }
 
+/* ── Soft refresh (status colours only) ── */
 function softUpdate(data) {
     if (!nodesDS) return;
-    const nodesMap = Object.fromEntries(data.nodes.map(n => [n.id, n]));
-    nodesDS.update(data.nodes.map(n => ({ id: n.id })));   // trigger redraw via ctxRenderer closure update
-    edgesDS.update(data.edges.map(e => makeEdge(e, nodesMap)));
-    updateStats(data);
+    const nodeMap = Object.fromEntries(data.nodes.map(n=>[n.id,n]));
+    /* Re-creating nodes to pick up new status colours via ctxRenderer closure */
+    nodesDS.update(data.nodes.map(n => ({ id: n.id })));
+    edgesDS.update(data.edges.map(e => makeEdge(e, nodeMap)));
+    updateHUD(data);
     scanAt = Date.now();
+    net?.redraw();
 }
 
-function updateStats(data) {
+function updateHUD(data) {
     document.getElementById('cnt-nodes').textContent = data.nodes.length + ' nodes';
     document.getElementById('cnt-edges').textContent = data.edges.length + ' links';
     document.getElementById('leg-on').textContent  = data.nodes.filter(n=>n.status==='online').length;
@@ -242,28 +254,27 @@ function updateStats(data) {
 }
 
 function loadTopo(initial=false) {
-    const ri = document.getElementById('ri');
-    ri.classList.add('animate-spin');
-    fetch(URL_TOPO).then(r=>r.json()).then(data => {
-        if (initial) build(data); else softUpdate(data);
-    }).catch(e=>{ console.error(e); document.getElementById('topo-load').style.display='none'; })
-    .finally(()=>ri.classList.remove('animate-spin'));
+    document.getElementById('ri').classList.add('animate-spin');
+    fetch(TOPO_URL).then(r=>r.json())
+        .then(d=>{ if(initial) build(d); else softUpdate(d); })
+        .catch(e=>{ console.error(e); document.getElementById('topo-load').style.display='none'; })
+        .finally(()=>document.getElementById('ri').classList.remove('animate-spin'));
 }
 
-function zoomIn()  { net?.moveTo({ scale: net.getScale()*1.25, animation:{ duration:200, easingFunction:'easeInOutQuad' } }); }
-function zoomOut() { net?.moveTo({ scale: net.getScale()/1.25, animation:{ duration:200, easingFunction:'easeInOutQuad' } }); }
-function fitAll()  { net?.fit({ animation:{ duration:400, easingFunction:'easeInOutQuad' } }); }
+function zoomIn()  { net?.moveTo({scale:net.getScale()*1.25,animation:{duration:200,easingFunction:'easeInOutQuad'}}); }
+function zoomOut() { net?.moveTo({scale:net.getScale()/1.25,animation:{duration:200,easingFunction:'easeInOutQuad'}}); }
+function fitAll()  { net?.fit({animation:{duration:400,easingFunction:'easeInOutQuad'}}); }
 
-// last-scan timer
+/* Last-scan counter */
 setInterval(() => {
     if (!scanAt) return;
     const s = Math.floor((Date.now()-scanAt)/1000);
-    document.getElementById('last-scan').textContent = s < 5 ? 'just now' : s + ' sec ago';
+    document.getElementById('last-scan').textContent = s < 5 ? 'just now' : s+' sec ago';
 }, 1000);
 
-// auto-refresh
+/* Auto-refresh every 30 s */
 let cd = 30;
-setInterval(() => { if (--cd <= 0) { cd=30; loadTopo(false); } }, 1000);
+setInterval(()=>{ if(--cd<=0){cd=30;loadTopo(false);} }, 1000);
 
 loadTopo(true);
 </script>
