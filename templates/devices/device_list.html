@@ -2,151 +2,169 @@
 
 {% block title %}Оборудование{% endblock %}
 
+{% block breadcrumbs %}
+<div class="flex items-center text-sm text-slate-500 mb-6">
+    <span class="hover:text-slate-800 cursor-pointer">Главная</span>
+    <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+    <span class="hover:text-slate-800 cursor-pointer">Сеть</span>
+    <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+    <span class="text-slate-800 font-medium">Оборудование</span>
+</div>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="mb-8 flex justify-between items-end">
     <div>
-        <h4 class="fw-bold mb-1 text-dark">Оборудование</h4>
-        <p class="text-muted small mb-0">Управление сетевыми устройствами и серверами</p>
+        <h1 class="text-3xl font-bold text-slate-900 mb-2">Оборудование</h1>
+        <p class="text-slate-500 text-sm">Управление сетевыми устройствами и серверами</p>
     </div>
     {% if is_operator %}
-    <a href="{% url 'device-add' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-plus-lg"></i> Добавить устройство
+    <a href="{% url 'device-add' %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors flex items-center">
+        <i class="bi bi-plus-lg mr-2"></i> Добавить устройство
     </a>
     {% endif %}
 </div>
 
 <!-- Фильтры -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3 px-4">
-        <form method="get" class="row g-3 align-items-center">
-            <div class="col-auto">
-                <label class="visually-hidden" for="typeSelect">Тип устройства</label>
-                <select name="type" id="typeSelect" class="form-select bg-light border-0 sm-shadow-sm text-secondary">
-                    <option value="">Все типы</option>
-                    {% for val, label in device_types %}
-                        <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-auto">
-                <label class="visually-hidden" for="statusSelect">Статус</label>
-                <select name="status" id="statusSelect" class="form-select bg-light border-0 sm-shadow-sm text-secondary">
-                    <option value="">Все статусы</option>
-                    {% for val, label in statuses %}
-                        <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-dark d-flex align-items-center gap-2">
-                    <i class="bi bi-funnel"></i> Применить
-                </button>
-            </div>
-            {% if selected_type or selected_status %}
-            <div class="col-auto ms-auto">
-                <a href="{% url 'device-list' %}" class="text-danger text-decoration-none small d-flex align-items-center gap-1">
-                    <i class="bi bi-x-circle"></i> Сбросить
-                </a>
-            </div>
-            {% endif %}
-        </form>
-    </div>
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm mb-6 px-6 py-4">
+    <form method="get" class="flex flex-wrap items-center gap-4">
+        <div>
+            <label class="sr-only" for="typeSelect">Тип устройства</label>
+            <select name="type" id="typeSelect" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-48 p-2">
+                <option value="">Все типы</option>
+                {% for val, label in device_types %}
+                    <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="sr-only" for="statusSelect">Статус</label>
+            <select name="status" id="statusSelect" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-48 p-2">
+                <option value="">Все статусы</option>
+                {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-md text-sm px-4 py-2 flex items-center transition-colors">
+                <i class="bi bi-funnel mr-2"></i> Применить
+            </button>
+        </div>
+        {% if selected_type or selected_status %}
+        <div class="ml-auto">
+            <a href="{% url 'device-list' %}" class="text-rose-500 hover:text-rose-700 text-sm font-medium flex items-center">
+                <i class="bi bi-x-circle mr-1"></i> Сбросить
+            </a>
+        </div>
+        {% endif %}
+    </form>
 </div>
 
 <!-- Таблица -->
-<div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 list-table align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width:20px; padding-left: 1.5rem;"></th>
-                        <th>Имя оборудования</th>
-                        <th>Тип</th>
-                        <th>IP-адрес</th>
-                        <th>Модель</th>
-                        <th>OS</th>
-                        <th>Статус</th>
-                        <th>Последний ответ</th>
-                        <th class="text-end" style="padding-right: 1.5rem;">Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for device in devices %}
-                    <tr>
-                        <td style="padding-left: 1.5rem;">
-                            <span class="badge bg-{{ device.get_status_color }} rounded-circle p-1" title="{{ device.get_status_display }}">&nbsp;</span>
-                        </td>
-                        <td class="fw-semibold">
-                            <a href="{% url 'device-detail' device.pk %}" class="text-dark text-decoration-none hover-primary">{{ device.name }}</a>
-                        </td>
-                        <td>
-                            <span class="badge bg-light text-secondary border px-2 py-1 fw-medium" style="font-size: 0.7rem;">
-                                {{ device.get_device_type_display }}
-                            </span>
-                        </td>
-                        <td><code class="px-2 py-1 bg-light text-primary rounded">{{ device.ip_address }}</code></td>
-                        <td class="small text-muted">{{ device.model|default:"—" }}</td>
-                        <td class="small text-muted" style="max-width:140px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;" title="{{ device.os_version }}">
-                            {{ device.os_version|default:"—" }}
-                        </td>
-                        <td>
-                            <span class="badge bg-{{ device.get_status_color }} opacity-75 bg-opacity-10 text-{{ device.get_status_color }} border border-{{ device.get_status_color }} fw-medium">
-                                {{ device.get_status_display }}
-                            </span>
-                        </td>
-                        <td class="small text-muted">
-                            {% if device.last_seen %}{{ device.last_seen|date:"d.m.Y H:i" }}{% else %}—{% endif %}
-                        </td>
-                        <td class="text-end" style="padding-right: 1.5rem;">
-                            <a href="{% url 'device-detail' device.pk %}" class="btn btn-sm btn-light text-secondary me-1 shadow-sm" title="Детали">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                            {% if is_operator %}
-                            <a href="{% url 'device-edit' device.pk %}" class="btn btn-sm btn-light text-primary me-1 shadow-sm" title="Редактировать">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <a href="{% url 'device-delete' device.pk %}" class="btn btn-sm btn-light text-danger shadow-sm" title="Удалить">
-                                <i class="bi bi-trash"></i>
-                            </a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
-                            <i class="bi bi-hdd-network fs-2 d-block mb-3 opacity-25"></i>
-                            <span class="d-block mb-1">Оборудование не найдено</span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                    <th class="px-6 py-4 w-12"></th>
+                    <th class="px-6 py-4">Имя оборудования</th>
+                    <th class="px-6 py-4">Тип</th>
+                    <th class="px-6 py-4">IP-адрес</th>
+                    <th class="px-6 py-4">Модель</th>
+                    <th class="px-6 py-4">OS</th>
+                    <th class="px-6 py-4">Статус</th>
+                    <th class="px-6 py-4">Последний ответ</th>
+                    <th class="px-6 py-4 text-right">Действия</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-sm">
+                {% for device in devices %}
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="w-2.5 h-2.5 rounded-full {% if device.status == 'online' %}bg-emerald-500 ring-2 ring-emerald-100{% elif device.status == 'offline' %}bg-rose-500 ring-2 ring-rose-100{% elif device.status == 'warning' %}bg-amber-500 ring-2 ring-amber-100{% else %}bg-slate-400 ring-2 ring-slate-100{% endif %}" title="{{ device.get_status_display }}"></div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-900">
+                        <a href="{% url 'device-detail' device.pk %}" class="hover:text-blue-600 transition-colors">{{ device.name }}</a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                            {{ device.get_device_type_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <code class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{{ device.ip_address }}</code>
+                    </td>
+                    <td class="px-6 py-4 text-slate-500">{{ device.model|default:"—" }}</td>
+                    <td class="px-6 py-4 text-slate-500 truncate max-w-[140px]" title="{{ device.os_version }}">
+                        {{ device.os_version|default:"—" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if device.status == 'online' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Online</span>
+                        {% elif device.status == 'offline' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/10">Offline</span>
+                        {% elif device.status == 'warning' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">Предупреждение</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">Неизвестно</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-500 text-xs">
+                        {% if device.last_seen %}{{ device.last_seen|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="{% url 'device-detail' device.pk %}" class="text-slate-400 hover:text-slate-600 mx-1" title="Детали">
+                            <i class="bi bi-eye text-lg"></i>
+                        </a>
+                        {% if is_operator %}
+                        <a href="{% url 'device-edit' device.pk %}" class="text-blue-400 hover:text-blue-600 mx-1" title="Редактировать">
+                            <i class="bi bi-pencil-square text-lg"></i>
+                        </a>
+                        <a href="{% url 'device-delete' device.pk %}" class="text-rose-400 hover:text-rose-600 mx-1 border-l pl-2 border-slate-200" title="Удалить">
+                            <i class="bi bi-trash text-lg"></i>
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="px-6 py-12 text-center text-slate-500 font-medium">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                            <i class="bi bi-pc-display text-3xl"></i>
+                        </div>
+                        Оборудование не найдено
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
 {% if is_paginated %}
-<nav class="mt-4 pb-2">
-    <ul class="pagination pagination-sm justify-content-center">
-        {% if page_obj.has_previous %}
-        <li class="page-item">
-            <a class="page-link text-secondary border-0 shadow-sm" href="?page={{ page_obj.previous_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&laquo; Назад</a>
-        </li>
+<nav class="flex items-center justify-center space-x-1 mt-8">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" class="px-3 py-2 bg-white border border-slate-200 text-slate-500 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium">
+        &laquo; Назад
+    </a>
+    {% endif %}
+    
+    {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <span class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium">{{ num }}</span>
+        {% else %}
+        <a href="?page={{ num }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" class="px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium">
+            {{ num }}
+        </a>
         {% endif %}
-        
-        {% for num in page_obj.paginator.page_range %}
-        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-            <a class="page-link {% if page_obj.number == num %}bg-primary border-primary text-white shadow-sm{% else %}text-secondary border-0 shadow-sm{% endif %}" href="?page={{ num }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">{{ num }}</a>
-        </li>
-        {% endfor %}
-        
-        {% if page_obj.has_next %}
-        <li class="page-item">
-            <a class="page-link text-secondary border-0 shadow-sm" href="?page={{ page_obj.next_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Вперёд &raquo;</a>
-        </li>
-        {% endif %}
-    </ul>
+    {% endfor %}
+    
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" class="px-3 py-2 bg-white border border-slate-200 text-slate-500 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium">
+        Вперёд &raquo;
+    </a>
+    {% endif %}
 </nav>
 {% endif %}
 {% endblock %}

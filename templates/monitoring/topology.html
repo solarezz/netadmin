@@ -2,88 +2,66 @@
 
 {% block title %}Топология сети{% endblock %}
 
-{% block extra_css %}
-<style>
-/* Remove breadcrumbs as they cluter the modern UI, we rely on Topbar */
-#topology-container {
-    width: 100%;
-    height: 600px;
-    border: none;
-    background: transparent;
-    border-radius: 0.75rem;
-}
-.legend-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 6px;
-    box-shadow: 0 0 0 2px rgba(255,255,255, 0.5);
-}
-</style>
-<link href="https://unpkg.com/vis-network/standalone/umd/vis-network.min.css" rel="stylesheet" type="text/css" />
+{% block breadcrumbs %}
+<div class="flex items-center text-sm text-slate-500 mb-6">
+    <span class="hover:text-slate-800 cursor-pointer">Главная</span>
+    <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+    <span class="hover:text-slate-800 cursor-pointer">Сеть</span>
+    <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+    <span class="text-slate-800 font-medium">Топология</span>
+</div>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="mb-8 flex justify-between items-end">
     <div>
-        <h4 class="fw-bold mb-1 text-dark">Топология сети</h4>
-        <p class="text-muted small mb-0">Логическая схема связей оборудования</p>
+        <h1 class="text-3xl font-bold text-slate-900 mb-2">Топология сети</h1>
+        <p class="text-slate-500 text-sm">Логическая схема связей оборудования, построенная автоматически.</p>
     </div>
-    <div class="d-flex align-items-center gap-3 bg-white px-3 py-2 rounded-3 border shadow-sm">
-        <div class="small text-muted fw-medium d-flex align-items-center">
-            <span class="legend-dot" style="background-color: var(--status-online);"></span>Online
-            <span class="legend-dot ms-3" style="background-color: var(--status-offline);"></span>Offline
-            <span class="legend-dot ms-3" style="background-color: var(--status-warn);"></span>Warning
+    <div class="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-sm">
+        <div class="flex items-center text-slate-600 font-medium">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 ring-2 ring-emerald-100"></span> Online
+        </div>
+        <div class="flex items-center text-slate-600 font-medium">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-2 ring-2 ring-rose-100"></span> Offline
+        </div>
+        <div class="flex items-center text-slate-600 font-medium">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-2 ring-2 ring-amber-100"></span> Warning
         </div>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body p-0 position-relative">
-        <!-- Interactive Map Container -->
-        <div id="topology-container" class="rounded-3"></div>
-        
-        <!-- Loading overlay -->
-        <div id="topo-loading" class="position-absolute top-50 start-50 translate-middle bg-white p-3 rounded-4 shadow-sm text-center" style="display:none; z-index: 10;">
-            <div class="spinner-border text-primary mb-2" role="status" style="width: 2rem; height: 2rem;">
-                <span class="visually-hidden">Загрузка...</span>
-            </div>
-            <div class="small fw-bold text-muted fw-medium">Построение графа...</div>
-        </div>
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm mb-6 relative overflow-hidden">
+    <div id="topology-container" class="w-full h-[600px] outline-none"></div>
+    
+    <!-- Loading overlay -->
+    <div id="topo-loading" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 hidden">
+        <div class="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3"></div>
+        <div class="text-sm font-semibold text-slate-700">Построение графа...</div>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-5">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="fw-bold text-muted mb-3" style="font-size: 0.75rem; letter-spacing: 0.05rem;">ЛЕГЕНДА: ФИГУРЫ</h6>
-                <div class="d-flex flex-column gap-2 small text-secondary">
-                    <div><i class="bi bi-diamond-fill text-primary me-2"></i> Router (Маршрутизатор MikroTik)</div>
-                    <div><i class="bi bi-hexagon-fill text-info me-2"></i> Switch (Коммутатор MikroTik)</div>
-                    <div><i class="bi bi-circle-fill text-secondary me-2"></i> Server (Linux Сервер)</div>
-                </div>
-            </div>
+<div class="grid grid-cols-3 gap-6">
+    <div class="col-span-1 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Легенда: Фигуры</h3>
+        <div class="space-y-3 text-sm text-slate-600">
+            <div class="flex items-center"><i class="bi bi-diamond-fill text-blue-500 text-lg mr-3"></i> Маршрутизатор MikroTik</div>
+            <div class="flex items-center"><i class="bi bi-hexagon-fill text-emerald-500 text-lg mr-3"></i> Коммутатор MikroTik</div>
+            <div class="flex items-center"><i class="bi bi-circle-fill text-slate-400 text-lg mr-3"></i> Linux Сервер / Клиент</div>
         </div>
     </div>
-    <div class="col-md-7">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-               <h6 class="fw-bold text-muted mb-3" style="font-size: 0.75rem; letter-spacing: 0.05rem;">ПОДСЕТИ</h6>
-               <div class="row g-3 small text-muted">
-                   <div class="col-6"><code>10.1.1.0/24</code> — Управление (Mgmt)</div>
-                   <div class="col-6"><code>10.1.10.0/24</code> — LAN 1 этаж</div>
-                   <div class="col-6"><code>10.1.20.0/24</code> — LAN 2 этаж</div>
-               </div>
-            </div>
+    <div class="col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Известные подсети</h3>
+        <div class="grid grid-cols-2 gap-4 text-sm text-slate-600">
+            <div><code class="text-blue-600 bg-blue-50 px-2 py-1 rounded">10.1.1.0/24</code> — Управление (Mgmt)</div>
+            <div><code class="text-blue-600 bg-blue-50 px-2 py-1 rounded">10.1.10.0/24</code> — LAN 1 этаж</div>
+            <div><code class="text-blue-600 bg-blue-50 px-2 py-1 rounded">10.1.20.0/24</code> — LAN 2 этаж</div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <script>
 const TOPOLOGY_URL = "{% url 'api-topology' %}";
 let network = null;
@@ -95,9 +73,9 @@ function buildTopology(data) {
     const container = document.getElementById('topology-container');
     const options = {
         nodes: {
-            size: 32,
+            size: 28,
             font: { 
-                size: 14, 
+                size: 13, 
                 face: 'Inter, sans-serif',
                 color: '#334155',
                 vadjust: 2,
@@ -107,10 +85,10 @@ function buildTopology(data) {
             borderWidth: 2,
             shadow: {
                 enabled: true,
-                color: 'rgba(0,0,0,0.1)',
-                size: 10,
+                color: 'rgba(0,0,0,0.08)',
+                size: 8,
                 x: 0,
-                y: 4
+                y: 3
             },
             margin: 10,
         },
@@ -139,17 +117,11 @@ function buildTopology(data) {
             }
         });
         
-        network.on('hoverNode', () => {
-            container.style.cursor = 'pointer';
-        });
+        network.on('hoverNode', () => { container.style.cursor = 'pointer'; });
+        network.on('blurNode', () => { container.style.cursor = 'default'; });
         
-        network.on('blurNode', () => {
-            container.style.cursor = 'default';
-        });
-        
-        // Hide loading once stabilized
         network.on('stabilizationIterationsDone', function () {
-            document.getElementById('topo-loading').style.display = 'none';
+            document.getElementById('topo-loading').classList.add('hidden');
         });
     }
 }
@@ -161,36 +133,27 @@ function updateColors(data) {
 }
 
 function loadTopology(initial = false) {
-    if (initial) document.getElementById('topo-loading').style.display = 'block';
+    if (initial) document.getElementById('topo-loading').classList.remove('hidden');
     
     fetch(TOPOLOGY_URL)
         .then(r => r.json())
         .then(data => {
-            if (initial) {
-                buildTopology(data);
-            } else {
-                updateColors(data);
-            }
+            if (initial) buildTopology(data);
+            else updateColors(data);
         })
         .catch(err => {
             console.error("Topology update error:", err);
-            document.getElementById('topo-loading').style.display = 'none';
+            document.getElementById('topo-loading').classList.add('hidden');
         });
 }
 
-// Первоначальная загрузка
 loadTopology(true);
 
-// Авто-обновление вместе с глобальным таймером
-// We hook into the same UI element from base.html to trigger graph sync
-let countdown = 30;
+let topoCountdown = 30;
 setInterval(() => {
-    countdown--;
-    const t = document.getElementById('refresh-timer');
-    if(t) t.textContent = countdown;
-    
-    if (countdown <= 0) {
-        countdown = 30;
+    topoCountdown--;
+    if (topoCountdown <= 0) {
+        topoCountdown = 30;
         loadTopology(false);
     }
 }, 1000);
