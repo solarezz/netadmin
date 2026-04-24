@@ -221,13 +221,9 @@ class TopologyApiView(LoginRequiredMixin, View):
                 try:
                     device, neighbors, arp_entries = future.result()
 
-                    # MikroTik ↔ MikroTik: только LLDP/CDP, не MNDP-только
+                    # MikroTik ↔ MikroTik: все обнаруженные соседи
+                    # (spanning tree отфильтрует избыточные рёбра)
                     for n in neighbors:
-                        protocol = n.get('protocol', 'mndp')
-                        # Пропускаем если ТОЛЬКО mndp (работает через L3, не прямое соединение)
-                        is_direct = 'lldp' in protocol or 'cdp' in protocol
-                        if not is_direct:
-                            continue
                         neighbor = ip_to_device.get(n['address'])
                         if neighbor:
                             edge_set.add(tuple(sorted([device.pk, neighbor.pk])))
@@ -247,11 +243,12 @@ class TopologyApiView(LoginRequiredMixin, View):
         for linux_pk, (mikrotik_pk, _) in linux_connections.items():
             edge_set.add(tuple(sorted([linux_pk, mikrotik_pk])))
 
-        # Защита: если граф слишком плотный (полная сетка),
-        # применяем spanning tree чтобы не было пентаграмм.
+        # Защита: если граф слишком плотный (>= N*(N-1)/3 рёбер = треть полной сетки),
+        # применяем spanning tree чтобы устранить пентаграмму.
         n_nodes = len(devices)
-        max_reasonable = max(n_nodes * 2, n_nodes - 1 + 3)
-        if len(edge_set) > max_reasonable:
+        # Полная сетка = N*(N-1)/2; если больше трети — это уже сетка, применяем spanning tree
+        full_mesh_third = max(n_nodes - 1, (n_nodes * (n_nodes - 1)) // 6)
+        if len(edge_set) > full_mesh_third:
             edge_set = self._spanning_tree(edge_set, devices)
 
         return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(edge_set)]

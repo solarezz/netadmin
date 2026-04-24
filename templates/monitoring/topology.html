@@ -268,23 +268,34 @@ function render(data) {
   const nodeMap = Object.fromEntries(data.nodes.map(n=>[n.id, n]));
 
   /* D3 force simulation (synchronous, no animation) */
-  const nodes = data.nodes.map(n => ({...n, x: W/2 + (Math.random()-.5)*200, y: H/2 + (Math.random()-.5)*200}));
+  const COUNT = data.nodes.length;
+  // Начальные позиции по кругу (детерминировано, узлы не уходят за экран)
+  const nodes = data.nodes.map((n, i) => {
+    const angle = (2 * Math.PI * i) / COUNT;
+    const r = Math.min(W, H) * 0.25;
+    return {...n, x: W/2 + r * Math.cos(angle), y: H/2 + r * Math.sin(angle)};
+  });
   const links = data.edges.map(e => ({...e, source: nodes.find(n=>n.id===e.from), target: nodes.find(n=>n.id===e.to)})).filter(l=>l.source&&l.target);
 
+  // Адаптивные силы по размеру сети
+  const repulsion = COUNT <= 4 ? -350 : COUNT <= 8 ? -500 : -650;
+  const linkDist  = COUNT <= 4 ? 160  : COUNT <= 8 ? 185  : 210;
+
   const sim = d3.forceSimulation(nodes)
-    .force('link',    d3.forceLink(links).id(d=>d.id).distance(200).strength(0.5))
-    .force('charge',  d3.forceManyBody().strength(-800))
-    .force('center',  d3.forceCenter(W/2, H/2))
-    .force('collide', d3.forceCollide(55))
+    .force('link',    d3.forceLink(links).id(d=>d.id).distance(linkDist).strength(0.8))
+    .force('charge',  d3.forceManyBody().strength(repulsion))
+    .force('center',  d3.forceCenter(W/2, H/2).strength(0.4))
+    .force('collide', d3.forceCollide(62))
     .stop();
-  for(let i=0;i<400;i++) sim.tick();
+  for(let i=0;i<500;i++) sim.tick();
 
   /* Clamp to canvas with padding */
-  const PAD = 70;
+  const PAD = 80;
   nodes.forEach(n => {
     n.x = Math.max(PAD, Math.min(W-PAD, n.x));
     n.y = Math.max(PAD, Math.min(H-PAD, n.y));
   });
+
 
   /* Remove old nodes */
   canvas.querySelectorAll('.topo-node').forEach(el=>el.remove());
