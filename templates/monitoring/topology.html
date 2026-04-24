@@ -21,15 +21,15 @@
             <button class="px-4 py-2 bg-white text-slate-600 hover:bg-slate-50 border-l border-slate-200">Logical</button>
             <button class="px-4 py-2 bg-white text-slate-600 hover:bg-slate-50 border-l border-slate-200">Subnet</button>
         </div>
-        <button class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm shadow-sm hover:bg-slate-50">
+        <button onclick="exportSVG()" class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm shadow-sm hover:bg-slate-50">
             <i class="bi bi-download"></i> Export SVG
         </button>
     </div>
 </div>
 
-<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden relative" style="height:70vh;min-height:540px;">
-    <!-- dot grid -->
-    <svg class="absolute inset-0 w-full h-full z-0 pointer-events-none">
+<div id="topo-wrap" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden relative" style="height:70vh;min-height:540px;">
+    <!-- dot grid background -->
+    <svg class="absolute inset-0 w-full h-full z-0 pointer-events-none" style="border-radius:inherit;">
         <defs>
             <pattern id="dg" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
                 <circle cx="1" cy="1" r="1" fill="#94a3b8" fill-opacity="0.3"/>
@@ -38,10 +38,11 @@
         <rect width="100%" height="100%" fill="url(#dg)"/>
     </svg>
 
-    <div id="topo" class="absolute inset-0 z-10"></div>
+    <!-- D3 SVG goes here -->
+    <div id="topo" class="absolute inset-0 z-10" style="overflow:hidden;"></div>
 
     <!-- stats pill -->
-    <div class="absolute top-4 left-4 z-20 bg-white/95 border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-2 text-sm">
+    <div class="absolute top-4 left-4 z-20 bg-white/95 border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-2 text-sm select-none">
         <span class="font-bold text-slate-900" id="cnt-nodes">—</span>
         <span class="text-slate-300">·</span>
         <span class="text-slate-500" id="cnt-edges">—</span>
@@ -52,229 +53,256 @@
     <!-- zoom controls -->
     <div class="absolute top-4 right-4 z-20 flex flex-col gap-2">
         <div class="bg-white/95 border border-slate-200 rounded-lg shadow-sm flex flex-col overflow-hidden">
-            <button onclick="zoomIn()" class="p-2.5 text-slate-500 hover:bg-slate-50 border-b border-slate-100 text-base"><i class="bi bi-plus-lg"></i></button>
-            <button onclick="zoomOut()" class="p-2.5 text-slate-500 hover:bg-slate-50 border-b border-slate-100 text-base"><i class="bi bi-dash-lg"></i></button>
-            <button onclick="fitAll()" class="p-2.5 text-slate-500 hover:bg-slate-50 text-base"><i class="bi bi-fullscreen"></i></button>
+            <button onclick="doZoom(1.25)" class="p-2.5 text-slate-500 hover:bg-slate-50 border-b border-slate-100 text-base leading-none"><i class="bi bi-plus-lg"></i></button>
+            <button onclick="doZoom(0.8)"  class="p-2.5 text-slate-500 hover:bg-slate-50 border-b border-slate-100 text-base leading-none"><i class="bi bi-dash-lg"></i></button>
+            <button onclick="doFit()"      class="p-2.5 text-slate-500 hover:bg-slate-50 text-base leading-none"><i class="bi bi-fullscreen"></i></button>
         </div>
-        <button onclick="loadTopo(false)" class="bg-white/95 border border-slate-200 rounded-lg shadow-sm p-2.5 text-slate-500 hover:bg-slate-50">
+        <button onclick="loadTopo(true)" class="bg-white/95 border border-slate-200 rounded-lg shadow-sm p-2.5 text-slate-500 hover:bg-slate-50">
             <i class="bi bi-arrow-repeat text-base" id="ri"></i>
         </button>
     </div>
 
     <!-- loading -->
-    <div id="topo-load" class="absolute inset-0 z-30 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+    <div id="topo-load" class="absolute inset-0 z-30 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-xl">
         <div class="flex flex-col items-center gap-3">
             <div class="w-9 h-9 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
-            <p class="text-sm font-medium text-slate-600">Загрузка топологии…</p>
+            <p class="text-sm font-medium text-slate-600">Loading topology…</p>
         </div>
     </div>
 
     <!-- legend -->
-    <div class="absolute bottom-4 left-4 z-20 bg-white/95 border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-4 text-xs font-medium">
-        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Online (<span id="leg-on">0</span>)</div>
-        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Warning (<span id="leg-wa">0</span>)</div>
-        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Offline (<span id="leg-off">0</span>)</div>
+    <div class="absolute bottom-4 left-4 z-20 bg-white/95 border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-4 text-xs font-medium select-none">
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Online (<span id="leg-on">0</span>)</div>
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Warning (<span id="leg-wa">0</span>)</div>
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Offline (<span id="leg-off">0</span>)</div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<style>
-#topo canvas { background: transparent !important; }
-.vis-tooltip {
-    font-family:'Inter',sans-serif !important; font-size:12px !important;
-    background:#0f172a !important; color:#e2e8f0 !important;
-    border:none !important; border-radius:6px !important;
-    padding:6px 10px !important; box-shadow:0 4px 16px rgba(0,0,0,.25) !important;
-}
-</style>
+<!-- D3.js v7 for force layout -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
 const TOPO_URL = "{% url 'api-topology' %}";
-let net = null, nodesDS = null, edgesDS = null, scanAt = null;
+const R = 26;  // node radius
 
-const SC = {
+const STATUS_COLOR = {
     online:  '#10b981',
     offline: '#ef4444',
     warning: '#f59e0b',
     unknown: '#94a3b8',
 };
 
-/* ── Draw device icon on canvas ── */
-function drawIcon(ctx, cx, cy, type, color) {
-    ctx.save();
-    ctx.strokeStyle = color; ctx.fillStyle = color;
-    ctx.lineWidth = 1.7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    if (type === 'mikrotik_router') {
-        ctx.strokeRect(cx-9, cy-3, 18, 11);
-        ctx.beginPath();
-        ctx.moveTo(cx-4,cy-3); ctx.lineTo(cx-4,cy-10);
-        ctx.moveTo(cx+4,cy-3); ctx.lineTo(cx+4,cy-10);
-        ctx.stroke();
-        ctx.beginPath(); ctx.arc(cx,cy+3,1.6,0,Math.PI*2); ctx.fill();
-    } else if (type === 'mikrotik_switch') {
-        ctx.strokeRect(cx-12, cy-5, 24, 11);
-        [-5,0,5].forEach(dx=>{ctx.beginPath();ctx.arc(cx+dx,cy+0.5,1.6,0,Math.PI*2);ctx.fill();});
-    } else {
-        ctx.strokeRect(cx-11, cy-7, 22, 7);
-        ctx.strokeRect(cx-11, cy+1,  22, 7);
-        ctx.beginPath(); ctx.arc(cx+8,cy-3.5,1.4,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(cx+8,cy+4.5,1.4,0,Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
+let zoomBehavior = null;
+let mainSvg = null;
+let scanAt = null;
+
+/* ─── SVG icon snippets (drawn relative to node centre 0,0) ─── */
+function iconSVG(type) {
+    const s = `stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+    if (type === 'mikrotik_router') return `
+        <rect x="-9" y="-3" width="18" height="11" rx="2" ${s}/>
+        <line x1="-4" y1="-3" x2="-4" y2="-10" ${s}/>
+        <line x1="4"  y1="-3" x2="4"  y2="-10" ${s}/>
+        <circle cx="0" cy="2.5" r="1.8" fill="currentColor" stroke="none"/>`;
+    if (type === 'mikrotik_switch') return `
+        <rect x="-11" y="-5.5" width="22" height="11" rx="2" ${s}/>
+        <circle cx="-5" cy="0" r="1.8" fill="currentColor" stroke="none"/>
+        <circle cx="0"  cy="0" r="1.8" fill="currentColor" stroke="none"/>
+        <circle cx="5"  cy="0" r="1.8" fill="currentColor" stroke="none"/>`;
+    /* linux / server default */
+    return `
+        <rect x="-11" y="-7"  width="22" height="7" rx="2" ${s}/>
+        <rect x="-11" y="1"   width="22" height="7" rx="2" ${s}/>
+        <circle cx="8" cy="-3.5" r="1.4" fill="currentColor" stroke="none"/>
+        <circle cx="8" cy="4.5"  r="1.4" fill="currentColor" stroke="none"/>`;
 }
 
-/* ── Build a vis.js node object ── */
-function makeNode(n) {
-    const color = SC[n.status] || SC.unknown;
-    const isCore = n.is_core;
-    const r = isCore ? 30 : 24;
+/* ─── Build / refresh the SVG topology ─── */
+function render(data) {
+    const wrap = document.getElementById('topo');
+    const W = wrap.clientWidth;
+    const H = wrap.clientHeight;
 
-    return {
-        id: n.id,
-        label: n.label + '\n' + (n.ip || ''),
-        url: n.url,
-        shape: 'custom',
-        size: r,
-        font: {
-            size: 11,
-            face: 'Inter, sans-serif',
-            color: '#64748b',
-            vadjust: 0,
-        },
-        /* Closure over n so ctxRenderer always has fresh data */
-        ctxRenderer({ ctx, x, y, state }) {
-            return {
-                drawNode() {
-                    /* Shadow */
-                    ctx.shadowColor = 'rgba(15,23,42,.12)';
-                    ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
-
-                    /* Main circle */
-                    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
-                    ctx.fillStyle = isCore ? '#0f172a' : '#ffffff';
-                    ctx.fill();
-
-                    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-
-                    /* Border */
-                    if (!isCore) {
-                        ctx.lineWidth = state.selected || state.hover ? 3 : 2.5;
-                        ctx.strokeStyle = state.selected ? '#3b82f6' : color;
-                        ctx.stroke();
-                    }
-
-                    /* Icon */
-                    drawIcon(ctx, x, y, n.device_type, isCore ? '#e2e8f0' : color);
-                },
-                nodeDimensions: { width: (r+4)*2, height: (r+4)*2 },
-            };
-        },
-    };
-}
-
-/* ── Build a vis.js edge ── */
-function makeEdge(e, nodeMap) {
-    const tgt = nodeMap[e.to];
-    const isOff = tgt?.status === 'offline';
-    const isWarn = tgt?.status === 'warning';
-    return {
-        id: e.id, from: e.from, to: e.to,
-        width: 1.8,
-        dashes: isOff,
-        color: { color: isOff ? '#fca5a5' : isWarn ? '#fcd34d' : '#cbd5e1', highlight: '#3b82f6', hover: '#94a3b8' },
-        smooth: { type: 'continuous', roundness: 0.35 },
-    };
-}
-
-/* ── vis.js options — HIERARCHICAL layout ── */
-const OPTS = {
-    nodes: { font: { size: 11, face: 'Inter, sans-serif', color: '#64748b' }, margin: 16 },
-    edges: { arrows: { to: false } },
-    layout: {
-        hierarchical: {
-            enabled: true,
-            direction: 'UD',          /* top → down */
-            sortMethod: 'hubsize',    /* most-connected node at top */
-            levelSeparation: 160,     /* vertical gap between levels */
-            nodeSpacing: 180,         /* horizontal gap between nodes at same level */
-            treeSpacing: 250,         /* gap between separate tree components */
-            blockShifting: true,
-            edgeMinimization: true,
-            parentCentralization: true,
-        },
-    },
-    physics: { enabled: false },      /* hierarchical handles positioning */
-    interaction: { hover: true, tooltipDelay: 150, zoomSpeed: 0.9, dragNodes: true, dragView: true },
-};
-
-/* ── Build initial network ── */
-function build(data) {
-    const nodeMap = Object.fromEntries(data.nodes.map(n=>[n.id,n]));
-    nodesDS = new vis.DataSet(data.nodes.map(makeNode));
-    edgesDS = new vis.DataSet(data.edges.map(e=>makeEdge(e,nodeMap)));
-
-    updateHUD(data);
-
-    const container = document.getElementById('topo');
-    if (net) { net.setData({nodes:nodesDS,edges:edgesDS}); return; }
-
-    net = new vis.Network(container, {nodes:nodesDS,edges:edgesDS}, OPTS);
-    net.once('afterDrawing', () => {
-        document.getElementById('topo-load').style.display = 'none';
-        scanAt = Date.now();
-    });
-    net.on('click', p => {
-        if (p.nodes.length) {
-            const n = data.nodes.find(x=>x.id===p.nodes[0]);
-            if (n?.url) location.href = n.url;
-        }
-    });
-    net.on('hoverNode', ()=>container.style.cursor='pointer');
-    net.on('blurNode',  ()=>container.style.cursor='default');
-}
-
-/* ── Soft refresh (status colours only) ── */
-function softUpdate(data) {
-    if (!nodesDS) return;
-    const nodeMap = Object.fromEntries(data.nodes.map(n=>[n.id,n]));
-    /* Re-creating nodes to pick up new status colours via ctxRenderer closure */
-    nodesDS.update(data.nodes.map(n => ({ id: n.id })));
-    edgesDS.update(data.edges.map(e => makeEdge(e, nodeMap)));
-    updateHUD(data);
-    scanAt = Date.now();
-    net?.redraw();
-}
-
-function updateHUD(data) {
-    document.getElementById('cnt-nodes').textContent = data.nodes.length + ' nodes';
-    document.getElementById('cnt-edges').textContent = data.edges.length + ' links';
+    /* counters */
+    document.getElementById('cnt-nodes').textContent = `${data.nodes.length} nodes`;
+    document.getElementById('cnt-edges').textContent = `${data.edges.length} links`;
     document.getElementById('leg-on').textContent  = data.nodes.filter(n=>n.status==='online').length;
     document.getElementById('leg-wa').textContent  = data.nodes.filter(n=>n.status==='warning').length;
     document.getElementById('leg-off').textContent = data.nodes.filter(n=>n.status==='offline').length;
+
+    /* clear previous */
+    wrap.innerHTML = '';
+
+    /* d3 node / link objects */
+    const nodes = data.nodes.map(n => ({...n}));
+    const idMap  = Object.fromEntries(nodes.map(n=>[n.id, n]));
+    const links  = data.edges.map(e => ({...e, source: idMap[e.from], target: idMap[e.to]}))
+                             .filter(l => l.source && l.target);
+
+    /* force simulation — run fully before drawing */
+    const sim = d3.forceSimulation(nodes)
+        .force('link',      d3.forceLink(links).id(d=>d.id).distance(200).strength(0.5))
+        .force('charge',    d3.forceManyBody().strength(-700))
+        .force('center',    d3.forceCenter(W/2, H/2))
+        .force('collide',   d3.forceCollide(R + 40))
+        .stop();
+
+    /* warm-start: 300 ticks */
+    for (let i = 0; i < 300; ++i) sim.tick();
+
+    /* SVG root */
+    const svg = d3.create('svg')
+        .attr('width',  W)
+        .attr('height', H)
+        .style('display', 'block');
+
+    mainSvg = svg;
+
+    const g = svg.append('g');  /* zoom group */
+
+    /* ── edges ── */
+    links.forEach(l => {
+        const tgtStatus = (l.target && l.target.status) || 'unknown';
+        const color  = tgtStatus === 'offline' ? '#fca5a5'
+                     : tgtStatus === 'warning' ? '#fcd34d'
+                     : '#cbd5e1';
+        const dashes = tgtStatus === 'offline' ? '6,4' : null;
+
+        g.append('line')
+            .attr('x1', l.source.x).attr('y1', l.source.y)
+            .attr('x2', l.target.x).attr('y2', l.target.y)
+            .attr('stroke', color)
+            .attr('stroke-width', 1.8)
+            .attr('stroke-dasharray', dashes);
+
+        /* small dot at midpoint (like prototype) */
+        const mx = (l.source.x + l.target.x) / 2;
+        const my = (l.source.y + l.target.y) / 2;
+        g.append('circle')
+            .attr('cx', mx).attr('cy', my)
+            .attr('r', 3)
+            .attr('fill', '#3b82f6')
+            .attr('opacity', 0.6);
+    });
+
+    /* ── nodes ── */
+    nodes.forEach(n => {
+        const color  = STATUS_COLOR[n.status] || STATUS_COLOR.unknown;
+        const isCore = n.is_core;
+
+        const ng = g.append('g')
+            .attr('transform', `translate(${n.x},${n.y})`)
+            .attr('style', 'cursor:pointer;')
+            .on('click', () => { if (n.url) location.href = n.url; })
+            .on('mouseenter', function() { d3.select(this).select('.node-ring').attr('stroke-width', isCore ? 0 : 3.5); })
+            .on('mouseleave', function() { d3.select(this).select('.node-ring').attr('stroke-width', isCore ? 0 : 2.5); });
+
+        /* drop shadow */
+        ng.append('circle')
+            .attr('r', R + 1)
+            .attr('fill', 'rgba(15,23,42,0.08)')
+            .attr('transform', 'translate(0,4)');
+
+        /* main circle */
+        ng.append('circle')
+            .attr('class', 'node-ring')
+            .attr('r', R)
+            .attr('fill',         isCore ? '#0f172a' : '#ffffff')
+            .attr('stroke',       isCore ? 'none'    : color)
+            .attr('stroke-width', isCore ? 0         : 2.5);
+
+        /* icon */
+        ng.append('g')
+            .attr('color', isCore ? '#e2e8f0' : color)
+            .html(iconSVG(n.device_type));
+
+        /* device name */
+        ng.append('text')
+            .attr('y', R + 18)
+            .attr('text-anchor', 'middle')
+            .attr('font-family', 'Inter, sans-serif')
+            .attr('font-size',   '12')
+            .attr('font-weight', '600')
+            .attr('fill', '#0f172a')
+            .text(n.label);
+
+        /* ip address */
+        ng.append('text')
+            .attr('y', R + 33)
+            .attr('text-anchor', 'middle')
+            .attr('font-family', 'Inter, sans-serif')
+            .attr('font-size',   '11')
+            .attr('fill', '#94a3b8')
+            .text(n.ip || '');
+    });
+
+    /* ── zoom & pan ── */
+    zoomBehavior = d3.zoom()
+        .scaleExtent([0.2, 4])
+        .on('zoom', e => g.attr('transform', e.transform));
+
+    svg.call(zoomBehavior);
+    /* initial fit */
+    fitToContent(svg, g, W, H);
+
+    wrap.appendChild(svg.node());
+    scanAt = Date.now();
 }
 
-function loadTopo(initial=false) {
+function fitToContent(svg, g, W, H) {
+    try {
+        const bb = g.node().getBBox();
+        if (!bb.width) return;
+        const pad = 60;
+        const scale = Math.min(W / (bb.width + pad*2), H / (bb.height + pad*2), 1);
+        const tx = (W - bb.width  * scale) / 2 - bb.x * scale;
+        const ty = (H - bb.height * scale) / 2 - bb.y * scale;
+        svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+    } catch(e) {}
+}
+
+/* ── Controls ── */
+function doZoom(factor) {
+    if (!mainSvg || !zoomBehavior) return;
+    mainSvg.transition().duration(250).call(zoomBehavior.scaleBy, factor);
+}
+function doFit() {
+    if (!mainSvg) return;
+    const wrap = document.getElementById('topo');
+    fitToContent(mainSvg, mainSvg.select('g'), wrap.clientWidth, wrap.clientHeight);
+}
+function exportSVG() {
+    if (!mainSvg) return;
+    const s = new XMLSerializer().serializeToString(mainSvg.node());
+    const a = document.createElement('a');
+    a.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+    a.download = 'topology.svg';
+    a.click();
+}
+
+/* ── Load ── */
+function loadTopo(redraw = true) {
     document.getElementById('ri').classList.add('animate-spin');
-    fetch(TOPO_URL).then(r=>r.json())
-        .then(d=>{ if(initial) build(d); else softUpdate(d); })
-        .catch(e=>{ console.error(e); document.getElementById('topo-load').style.display='none'; })
-        .finally(()=>document.getElementById('ri').classList.remove('animate-spin'));
+    if (redraw) document.getElementById('topo-load').style.display = 'flex';
+
+    fetch(TOPO_URL)
+        .then(r => r.json())
+        .then(d => { render(d); document.getElementById('topo-load').style.display = 'none'; })
+        .catch(e => { console.error(e); document.getElementById('topo-load').style.display = 'none'; })
+        .finally(() => document.getElementById('ri').classList.remove('animate-spin'));
 }
 
-function zoomIn()  { net?.moveTo({scale:net.getScale()*1.25,animation:{duration:200,easingFunction:'easeInOutQuad'}}); }
-function zoomOut() { net?.moveTo({scale:net.getScale()/1.25,animation:{duration:200,easingFunction:'easeInOutQuad'}}); }
-function fitAll()  { net?.fit({animation:{duration:400,easingFunction:'easeInOutQuad'}}); }
-
-/* Last-scan counter */
+/* last-scan counter */
 setInterval(() => {
     if (!scanAt) return;
     const s = Math.floor((Date.now()-scanAt)/1000);
-    document.getElementById('last-scan').textContent = s < 5 ? 'just now' : s+' sec ago';
+    document.getElementById('last-scan').textContent = s < 5 ? 'just now' : s + ' sec ago';
 }, 1000);
 
-/* Auto-refresh every 30 s */
+/* auto-refresh every 30 s (soft – re-render with new data) */
 let cd = 30;
-setInterval(()=>{ if(--cd<=0){cd=30;loadTopo(false);} }, 1000);
+setInterval(() => { if (--cd <= 0) { cd=30; loadTopo(false); } }, 1000);
 
 loadTopo(true);
 </script>
