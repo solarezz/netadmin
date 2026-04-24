@@ -156,8 +156,10 @@ class MikroTikManager(DeviceConnector):
                     'address':   p.get('address', ''),
                     'identity':  p.get('identity', ''),
                     'platform':  p.get('platform', ''),
+                    'protocol':  p.get('protocol', 'mndp').lower(),
                 })
         return neighbors
+
 
     def get_dhcp_leases_structured(self) -> list:
         output = self.execute_command('/ip dhcp-server lease print terse')

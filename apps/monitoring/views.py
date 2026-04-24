@@ -213,7 +213,6 @@ class TopologyApiView(LoginRequiredMixin, View):
             except Exception:
                 return device, [], []
 
-        # linux_pk -> (mikrotik_pk, is_non_mgmt) — запоминаем лучшее совпадение
         linux_connections = {}
 
         with ThreadPoolExecutor(max_workers=4) as pool:
@@ -222,20 +221,24 @@ class TopologyApiView(LoginRequiredMixin, View):
                 try:
                     device, neighbors, arp_entries = future.result()
 
-                    # LLDP: MikroTik ↔ MikroTik
+                    # MikroTik ↔ MikroTik: только LLDP/CDP, не MNDP-только
                     for n in neighbors:
+                        protocol = n.get('protocol', 'mndp')
+                        # Пропускаем если ТОЛЬКО mndp (работает через L3, не прямое соединение)
+                        is_direct = 'lldp' in protocol or 'cdp' in protocol
+                        if not is_direct:
+                            continue
                         neighbor = ip_to_device.get(n['address'])
                         if neighbor:
                             edge_set.add(tuple(sorted([device.pk, neighbor.pk])))
 
-                    # ARP: MikroTik ↔ Linux
+                    # ARP: MikroTik ↔ Linux (только не-mgmt интерфейсы)
                     for entry in arp_entries:
                         linux = linux_ips.get(entry['ip'])
                         if not linux:
                             continue
-                        is_non_mgmt = entry.get('interface', '') not in ('ether1', 'bridge')
+                        is_non_mgmt = entry.get('interface', '') not in ('ether1', 'bridge', 'bridge1')
                         existing = linux_connections.get(linux.pk)
-                        # Предпочитаем не-mgmt интерфейс (прямое подключение к коммутатору)
                         if not existing or (is_non_mgmt and not existing[1]):
                             linux_connections[linux.pk] = (device.pk, is_non_mgmt)
                 except Exception:
@@ -244,7 +247,52 @@ class TopologyApiView(LoginRequiredMixin, View):
         for linux_pk, (mikrotik_pk, _) in linux_connections.items():
             edge_set.add(tuple(sorted([linux_pk, mikrotik_pk])))
 
+        # Защита: если граф слишком плотный (полная сетка),
+        # применяем spanning tree чтобы не было пентаграмм.
+        n_nodes = len(devices)
+        max_reasonable = max(n_nodes * 2, n_nodes - 1 + 3)
+        if len(edge_set) > max_reasonable:
+            edge_set = self._spanning_tree(edge_set, devices)
+
         return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(edge_set)]
+
+    def _spanning_tree(self, edge_set, devices):
+        """BFS spanning tree — убирает избыточные рёбра, сохраняет связность."""
+        from collections import defaultdict, deque
+
+        adj = defaultdict(list)
+        all_pks = set()
+        for a, b in edge_set:
+            adj[a].append(b)
+            adj[b].append(a)
+            all_pks.add(a); all_pks.add(b)
+
+        if not all_pks:
+            return edge_set
+
+        # Стартуем с наиболее связного узла (скорее всего core)
+        core_pks = {d.pk for d in devices if 'core' in d.name.lower() or 'perimeter' in d.name.lower()}
+        start = next(iter(core_pks)) if core_pks else max(all_pks, key=lambda p: len(adj[p]))
+
+        visited = {start}
+        queue = deque([start])
+        tree = set()
+
+        while queue:
+            node = queue.popleft()
+            for nb in sorted(adj[node], key=lambda p: -len(adj[p])):  # old hub-first
+                if nb not in visited:
+                    visited.add(nb)
+                    queue.append(nb)
+                    tree.add(tuple(sorted([node, nb])))
+
+        # Добавляем изолированные узлы (нет рёбер)
+        all_device_pks = {d.pk for d in devices}
+        for pk in all_device_pks - all_pks:
+            pass  # изолированные узлы без рёбер, просто отображаются
+
+        return tree
+
 
 
 class DeviceMetricsApiView(LoginRequiredMixin, View):
