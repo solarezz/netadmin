@@ -133,10 +133,10 @@ class TopologyApiView(LoginRequiredMixin, View):
     """
 
     STATUS_COLORS = {
-        'online':  {'background': '#28a745', 'border': '#1e7e34', 'font': '#ffffff'},
-        'offline': {'background': '#dc3545', 'border': '#bd2130', 'font': '#ffffff'},
-        'warning': {'background': '#ffc107', 'border': '#d39e00', 'font': '#000000'},
-        'unknown': {'background': '#6c757d', 'border': '#545b62', 'font': '#ffffff'},
+        'online':  {'background': '#10b981', 'border': '#047857', 'font': '#ffffff'},
+        'offline': {'background': '#ef4444', 'border': '#b91c1c', 'font': '#ffffff'},
+        'warning': {'background': '#f59e0b', 'border': '#b45309', 'font': '#ffffff'},
+        'unknown': {'background': '#64748b', 'border': '#334155', 'font': '#ffffff'},
     }
     SHAPES = {
         'mikrotik_router': 'diamond',

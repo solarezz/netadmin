@@ -4,26 +4,38 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="fw-bold mb-0"><i class="bi bi-archive text-secondary"></i> Бэкапы конфигураций</h4>
+    <div>
+        <h4 class="fw-bold mb-1 text-dark">Резервные копии</h4>
+        <p class="text-muted small mb-0">Управление бэкапами и сравнение версий конфигураций</p>
+    </div>
 </div>
 
 <!-- Фильтр -->
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body py-2">
-        <form method="get" class="d-flex gap-2 align-items-center">
-            <select name="device" class="form-select form-select-sm" style="width:auto;">
-                <option value="">Все устройства</option>
-                {% for dev in devices %}
-                    <option value="{{ dev.pk }}" {% if selected_device == dev.pk|stringformat:"i" %}selected{% endif %}>
-                        {{ dev.name }}
-                    </option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-funnel"></i> Фильтр
-            </button>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3 px-4">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label class="visually-hidden" for="deviceSelect">Устройство</label>
+                <select name="device" id="deviceSelect" class="form-select bg-light border-0 shadow-sm text-secondary">
+                    <option value="">Все устройства</option>
+                    {% for dev in devices %}
+                        <option value="{{ dev.pk }}" {% if selected_device == dev.pk|stringformat:"i" %}selected{% endif %}>
+                            {{ dev.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-funnel"></i> Применить
+                </button>
+            </div>
             {% if selected_device %}
-                <a href="{% url 'backup-list' %}" class="btn btn-link btn-sm text-muted">Сбросить</a>
+            <div class="col-auto ms-auto">
+                <a href="{% url 'backup-list' %}" class="text-danger text-decoration-none small d-flex align-items-center gap-1">
+                    <i class="bi bi-x-circle"></i> Сбросить
+                </a>
+            </div>
             {% endif %}
         </form>
     </div>
@@ -32,49 +44,51 @@
 <form id="diff-form">
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold">Список бэкапов</h6>
+        <h6 class="mb-0 fw-bold d-flex align-items-center gap-2">
+            <i class="bi bi-archive text-primary"></i> Журнал создания копий
+        </h6>
         <button type="button" id="btn-diff" class="btn btn-outline-info btn-sm" disabled>
             <i class="bi bi-subtract"></i> Сравнить выбранные (2)
         </button>
     </div>
-    <div class="card-body p-0">
+    <div class="card-body p-0 border-top">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 list-table align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th style="width:40px"></th>
+                        <th style="width:40px; padding-left: 1.5rem;"></th>
                         <th>Дата и время</th>
-                        <th>Устройство</th>
+                        <th>Оборудование</th>
                         <th>Тип</th>
                         <th>Размер</th>
-                        <th>Создан пользователем</th>
-                        <th>Действия</th>
+                        <th>Автор</th>
+                        <th class="text-end" style="padding-right: 1.5rem;">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for backup in backups %}
                     <tr>
-                        <td>
-                            <input type="checkbox" class="form-check-input backup-check"
+                        <td style="padding-left: 1.5rem;">
+                            <input type="checkbox" class="form-check-input backup-check border-secondary"
                                    value="{{ backup.pk }}" data-device="{{ backup.device.pk }}">
                         </td>
-                        <td class="small">{{ backup.created_at|date:"d.m.Y H:i:s" }}</td>
+                        <td class="small text-dark fw-medium">{{ backup.created_at|date:"d.m.Y H:i:s" }}</td>
                         <td>
-                            <a href="{% url 'device-detail' backup.device.pk %}" class="text-decoration-none">
+                            <a href="{% url 'device-detail' backup.device.pk %}" class="text-dark text-decoration-none fw-semibold hover-primary">
                                 {{ backup.device.name }}
                             </a>
                         </td>
                         <td>
                             {% if backup.is_automatic %}
-                                <span class="badge bg-secondary">Авто</span>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-2">Автоматически</span>
                             {% else %}
-                                <span class="badge bg-primary">Ручной</span>
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2">Вручную</span>
                             {% endif %}
                         </td>
-                        <td class="small">{{ backup.size_kb }} KB</td>
-                        <td class="small text-muted">{{ backup.created_by|default:"system" }}</td>
-                        <td>
-                            <a href="{% url 'backup-view' backup.pk %}" class="btn btn-outline-secondary btn-sm">
+                        <td class="small text-muted">{{ backup.size_kb }} KB</td>
+                        <td class="small text-muted">{{ backup.created_by|default:"System" }}</td>
+                        <td class="text-end" style="padding-right: 1.5rem;">
+                            <a href="{% url 'backup-view' backup.pk %}" class="btn btn-sm btn-light text-secondary shadow-sm" title="Просмотр конфигурации">
                                 <i class="bi bi-eye"></i> Просмотр
                             </a>
                         </td>
@@ -82,8 +96,9 @@
                     {% empty %}
                     <tr>
                         <td colspan="7" class="text-center py-5 text-muted">
-                            <i class="bi bi-archive fs-2 d-block mb-2"></i>
-                            Нет бэкапов. Создайте первый бэкап на странице устройства.
+                            <i class="bi bi-archive fs-2 d-block mb-3 opacity-25"></i>
+                            <span class="d-block mb-1">Архив конфигураций пуст</span>
+                            <small class="opacity-75">Создайте первый бэкап на странице оборудования</small>
                         </td>
                     </tr>
                     {% endfor %}
@@ -96,14 +111,20 @@
 
 <!-- Пагинация -->
 {% if is_paginated %}
-<nav class="mt-3">
+<nav class="mt-4 pb-2">
     <ul class="pagination pagination-sm justify-content-center">
         {% if page_obj.has_previous %}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_device %}&device={{ selected_device }}{% endif %}">‹</a></li>
+            <li class="page-item">
+                <a class="page-link text-secondary border-0 shadow-sm" href="?page={{ page_obj.previous_page_number }}{% if selected_device %}&device={{ selected_device }}{% endif %}">&laquo;</a>
+            </li>
         {% endif %}
-        <li class="page-item disabled"><span class="page-link">Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span></li>
+        <li class="page-item disabled">
+            <span class="page-link border-0 text-secondary shadow-sm bg-light">Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+        </li>
         {% if page_obj.has_next %}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_device %}&device={{ selected_device }}{% endif %}">›</a></li>
+            <li class="page-item">
+                <a class="page-link text-secondary border-0 shadow-sm" href="?page={{ page_obj.next_page_number }}{% if selected_device %}&device={{ selected_device }}{% endif %}">&raquo;</a>
+            </li>
         {% endif %}
     </ul>
 </nav>

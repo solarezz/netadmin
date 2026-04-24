@@ -10,100 +10,90 @@
     <link href="{% static 'css/custom.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{% url 'dashboard' %}">
-                <i class="bi bi-hdd-network-fill text-primary"></i> NetAdmin
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navMenu">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
-                           href="{% url 'dashboard' %}">
-                            <i class="bi bi-speedometer2"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'device' in request.resolver_match.url_name %}active{% endif %}"
-                           href="{% url 'device-list' %}">
-                            <i class="bi bi-router"></i> Устройства
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'backup' in request.resolver_match.url_name %}active{% endif %}"
-                           href="{% url 'backup-list' %}">
-                            <i class="bi bi-archive"></i> Бэкапы
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'topology' %}active{% endif %}"
-                           href="{% url 'topology' %}">
-                            <i class="bi bi-diagram-3"></i> Топология
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'alerts' in request.resolver_match.url_name %}active{% endif %}"
-                           href="{% url 'dashboard' %}#alerts" id="nav-alerts-link">
-                            <i class="bi bi-bell"></i> Алерты
-                            {% if active_alerts_count %}
-                            <span class="badge bg-danger rounded-pill ms-1" id="nav-alert-badge">{{ active_alerts_count }}</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item">
-                        <span class="nav-link small" id="auto-refresh-info"
-                              style="font-size:0.8rem; opacity:0.6; color:#fff;" title="Авто-обновление статусов">
-                            <i class="bi bi-arrow-repeat"></i> <span id="refresh-timer">30</span>с
-                        </span>
-                    </li>
-                    {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <span class="nav-link text-light">
-                                <i class="bi bi-person-circle"></i> {{ user.username }}
-                                {% if user_role %}
-                                <span class="badge ms-1
-                                    {% if user_role == 'admin' %}bg-danger
-                                    {% elif user_role == 'operator' %}bg-warning text-dark
-                                    {% else %}bg-secondary{% endif %}">
-                                    {{ user_role }}
-                                </span>
-                                {% endif %}
-                            </span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'logout' %}">
-                                <i class="bi bi-box-arrow-right"></i> Выход
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
+<body>
+    <div class="app-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="bi bi-hdd-network-fill text-primary me-2"></i> NetAdmin
             </div>
-        </div>
-    </nav>
+            
+            <div class="sidebar-nav">
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+                <a class="sidebar-link {% if 'device' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'device-list' %}">
+                    <i class="bi bi-router"></i> Устройства
+                </a>
+                <a class="sidebar-link {% if 'backup' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'backup-list' %}">
+                    <i class="bi bi-archive"></i> Бэкапы
+                </a>
+                <a class="sidebar-link {% if request.resolver_match.url_name == 'topology' %}active{% endif %}" href="{% url 'topology' %}">
+                    <i class="bi bi-diagram-3"></i> Топология
+                </a>
+            </div>
+            
+            <div class="sidebar-footer">
+                NetAdmin v1.0 <br> ООО «ТехСервис»
+            </div>
+        </aside>
 
-    <div class="container-fluid mt-3 px-4">
-        {% block breadcrumbs %}{% endblock %}
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-info">
+                    <div class="topbar-timer" id="auto-refresh-info" title="Статусы обновляются автоматически">
+                        <i class="bi bi-arrow-repeat" id="refresh-icon"></i>
+                        <span>Обновление через: <span id="refresh-timer" class="fw-bold">30</span>с</span>
+                    </div>
                 </div>
-            {% endfor %}
-        {% endif %}
+                
+                <div class="d-flex align-items-center gap-4">
+                    <a href="{% url 'dashboard' %}#alerts" class="nav-alert-icon" id="nav-alerts-link">
+                        <i class="bi bi-bell"></i>
+                        {% if active_alerts_count %}
+                        <span class="badge bg-danger rounded-pill shadow-sm" id="nav-alert-badge">{{ active_alerts_count }}</span>
+                        {% endif %}
+                    </a>
+                    
+                    {% if user.is_authenticated %}
+                    <div class="topbar-user">
+                        <i class="bi bi-person-circle fs-4 text-primary"></i>
+                        <div class="d-flex flex-column lh-1">
+                            <span>{{ user.username }}</span>
+                            {% if user_role %}
+                            <span class="badge mt-1
+                                {% if user_role == 'admin' %}bg-danger
+                                {% elif user_role == 'operator' %}bg-warning text-dark
+                                {% else %}bg-secondary{% endif %}" style="font-size:0.65rem;">
+                                {{ user_role }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <a href="{% url 'logout' %}" class="text-muted ms-2" title="Выход"><i class="bi bi-box-arrow-right fs-5"></i></a>
+                    {% endif %}
+                </div>
+            </header>
 
-        {% block content %}{% endblock %}
+            <!-- Page Content -->
+            <div class="container-fluid mt-4 px-4 pb-5">
+                {% block breadcrumbs %}{% endblock %}
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-0 shadow-sm" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
     </div>
-
-    <footer class="mt-5 py-3 text-center text-muted small bg-white border-top">
-        NetAdmin v1.0 — Система управления сетевым оборудованием ООО «ТехСервис»
-    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

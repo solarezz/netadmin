@@ -4,44 +4,51 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="fw-bold mb-0"><i class="bi bi-speedometer2 text-primary"></i> Dashboard</h4>
-    <button class="btn btn-outline-primary btn-sm" id="btn-check-all">
+    <div>
+        <h4 class="fw-bold mb-1 text-dark">Dashboard</h4>
+        <p class="text-muted small mb-0">Сводка состояния сети по всем узлам</p>
+    </div>
+    <button class="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3" id="btn-check-all">
         <i class="bi bi-arrow-clockwise"></i> Обновить статусы
     </button>
 </div>
 
-<!-- Карточки счётчики -->
-<div class="row g-3 mb-4">
+<!-- Счётчики -->
+<div class="row g-4 mb-4">
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3">
-            <div class="card-body">
-                <div class="fs-1 fw-bold text-secondary">{{ total_devices }}</div>
-                <div class="text-muted small">Всего устройств</div>
+        <div class="card h-100 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted fw-semibold small text-uppercase">Всего устройств</span>
+                <i class="bi bi-hdd-stack fs-5 text-secondary opacity-50"></i>
             </div>
+            <div class="fs-1 fw-bold text-dark">{{ total_devices }}</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3 border-start border-success border-3">
-            <div class="card-body">
-                <div class="fs-1 fw-bold text-success" id="counter-online">{{ online_count }}</div>
-                <div class="text-muted small">Online</div>
+        <div class="card h-100 p-3" style="border-bottom: 4px solid var(--status-online);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted fw-semibold small text-uppercase">Online</span>
+                <i class="bi bi-check-circle-fill fs-5 text-success opacity-75"></i>
             </div>
+            <div class="fs-1 fw-bold text-dark" id="counter-online">{{ online_count }}</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3 border-start border-danger border-3">
-            <div class="card-body">
-                <div class="fs-1 fw-bold text-danger" id="counter-offline">{{ offline_count }}</div>
-                <div class="text-muted small">Offline</div>
+        <div class="card h-100 p-3" style="border-bottom: 4px solid var(--status-offline);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted fw-semibold small text-uppercase">Offline</span>
+                <i class="bi bi-x-circle-fill fs-5 text-danger opacity-75"></i>
             </div>
+            <div class="fs-1 fw-bold text-dark" id="counter-offline">{{ offline_count }}</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3 border-start border-warning border-3">
-            <div class="card-body">
-                <div class="fs-1 fw-bold text-warning" id="counter-warning">{{ warning_count }}</div>
-                <div class="text-muted small">Предупреждения</div>
+        <div class="card h-100 p-3" style="border-bottom: 4px solid var(--status-warn);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted fw-semibold small text-uppercase">Аномалии</span>
+                <i class="bi bi-exclamation-triangle-fill fs-5 text-warning opacity-75"></i>
             </div>
+            <div class="fs-1 fw-bold text-dark" id="counter-warning">{{ warning_count }}</div>
         </div>
     </div>
 </div>
@@ -49,16 +56,18 @@
 <div class="row g-4">
     <!-- Таблица устройств -->
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-3">
-                <h6 class="mb-0 fw-bold"><i class="bi bi-router text-primary"></i> Устройства</h6>
+        <div class="card h-100">
+            <div class="card-header border-0 py-3 d-flex align-items-center justify-content-between">
+                <h6 class="mb-0 fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-router"></i> Список оборудования
+                </h6>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 border-top">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0 list-table">
                         <thead class="table-light">
                             <tr>
-                                <th style="width:30px"></th>
+                                <th style="width:20px; padding-left: 1.5rem;"></th>
                                 <th>Имя</th>
                                 <th>Тип</th>
                                 <th>IP-адрес</th>
@@ -72,25 +81,29 @@
                             <tr class="cursor-pointer"
                                 data-device-id="{{ device.pk }}"
                                 onclick="location.href='{% url 'device-detail' device.pk %}'">
-                                <td>
+                                <td style="padding-left: 1.5rem; vertical-align: middle;">
                                     <span class="badge status-dot bg-{{ device.get_status_color }} rounded-circle p-1"
                                           title="{{ device.get_status_display }}">
-                                        &nbsp;
                                     </span>
                                 </td>
-                                <td class="fw-semibold">{{ device.name }}</td>
-                                <td><span class="badge bg-light text-dark border">{{ device.get_device_type_display }}</span></td>
+                                <td class="fw-semibold text-dark">{{ device.name }}</td>
+                                <td>
+                                    <span class="badge bg-light text-secondary border px-2 py-1 fw-medium" style="font-size: 0.75rem;">
+                                        {{ device.get_device_type_display }}
+                                    </span>
+                                </td>
                                 <td><code>{{ device.ip_address }}</code></td>
                                 <td class="text-muted small">{{ device.location|default:"—" }}</td>
-                                <td class="small device-uptime">{{ device.uptime|default:"—" }}</td>
+                                <td class="small device-uptime text-muted">{{ device.uptime|default:"—" }}</td>
                                 <td class="small text-muted device-last-seen">
                                     {% if device.last_seen %}{{ device.last_seen|date:"d.m.Y H:i" }}{% else %}—{% endif %}
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">
-                                    Нет устройств. <a href="{% url 'device-add' %}">Добавить</a>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
+                                    Нет устройств. <a href="{% url 'device-add' %}" class="text-decoration-none">Добавить</a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -102,58 +115,57 @@
     </div>
 
     <!-- Алерты и график -->
-    <div class="col-lg-4">
+    <div class="col-lg-4 d-flex flex-column gap-4">
+        <!-- График -->
+        <div class="card">
+            <div class="card-header border-0 py-3">
+                <h6 class="mb-0 fw-bold d-flex align-items-center gap-2"><i class="bi bi-pie-chart text-primary"></i> Сводка статусов</h6>
+            </div>
+            <div class="card-body border-top">
+                <canvas id="statusChart" height="200"></canvas>
+            </div>
+        </div>
+        
         <!-- Алерты -->
-        <div class="card border-0 shadow-sm mb-3" id="alerts">
-            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold">
-                    <i class="bi bi-exclamation-triangle text-danger"></i> Активные алерты
-                    {% if active_alerts_count %}
-                    <span class="badge bg-danger ms-1">{{ active_alerts_count }}</span>
-                    {% endif %}
+        <div class="card" id="alerts">
+            <div class="card-header border-0 py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-exclamation-triangle text-danger"></i> Требует внимания
                 </h6>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 border-top">
                 <ul class="list-group list-group-flush" id="alerts-list">
                     {% for alert in recent_alerts %}
-                    <li class="list-group-item px-3 py-2" id="alert-item-{{ alert.pk }}">
-                        <div class="d-flex align-items-start gap-2">
+                    <li class="list-group-item px-4 py-3" id="alert-item-{{ alert.pk }}">
+                        <div class="d-flex align-items-start gap-3">
                             {% if alert.severity == 'critical' %}
-                                <i class="bi bi-x-circle-fill text-danger mt-1"></i>
+                                <i class="bi bi-circle-fill text-danger fs-6 lh-1 mt-1"></i>
                             {% elif alert.severity == 'warning' %}
-                                <i class="bi bi-exclamation-triangle-fill text-warning mt-1"></i>
+                                <i class="bi bi-circle-fill text-warning fs-6 lh-1 mt-1"></i>
                             {% else %}
-                                <i class="bi bi-info-circle-fill text-info mt-1"></i>
+                                <i class="bi bi-circle-fill text-info fs-6 lh-1 mt-1"></i>
                             {% endif %}
                             <div class="flex-grow-1">
-                                <div class="small fw-semibold">{{ alert.device.name }}</div>
-                                <div class="text-muted" style="font-size:0.8rem;">{{ alert.message }}</div>
-                                <div class="text-muted" style="font-size:0.75rem;">{{ alert.created_at|date:"d.m H:i" }}</div>
+                                <div class="small fw-semibold text-dark">{{ alert.device.name }}</div>
+                                <div class="text-muted mt-1" style="font-size:0.8rem; line-height: 1.4;">{{ alert.message }}</div>
+                                <div class="text-black-50 mt-2" style="font-size:0.7rem;">{{ alert.created_at|date:"d.m H:i" }}</div>
                             </div>
-                            <button class="btn btn-outline-success btn-sm py-0 px-1 resolve-alert-btn"
-                                    data-alert-id="{{ alert.pk }}" title="Закрыть алерт">
-                                <i class="bi bi-check-lg"></i>
+                            <button class="btn btn-sm btn-light text-success py-1 px-2 resolve-alert-btn shadow-sm"
+                                    data-alert-id="{{ alert.pk }}" title="Пометить как решённое">
+                                <i class="bi bi-check2"></i>
                             </button>
                         </div>
                     </li>
                     {% empty %}
-                    <li class="list-group-item text-center text-success py-3" id="no-alerts-msg">
-                        <i class="bi bi-check-circle-fill"></i> Всё в порядке
+                    <li class="list-group-item text-center text-secondary py-5 border-0" id="no-alerts-msg">
+                        <i class="bi bi-shield-check fs-2 text-success opacity-50 d-block mb-2"></i>
+                        Событий не обнаружено
                     </li>
                     {% endfor %}
                 </ul>
             </div>
         </div>
 
-        <!-- График -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-3">
-                <h6 class="mb-0 fw-bold"><i class="bi bi-pie-chart text-primary"></i> Статус устройств</h6>
-            </div>
-            <div class="card-body">
-                <canvas id="statusChart" height="180"></canvas>
-            </div>
-        </div>
     </div><!-- /col-lg-4 -->
 </div><!-- /row -->
 
@@ -165,6 +177,14 @@
 <script>
 // ===== PIE CHART =====
 const ctx = document.getElementById('statusChart').getContext('2d');
+
+// CSS variables directly logic
+const rootStyle = getComputedStyle(document.documentElement);
+const colorOnline = rootStyle.getPropertyValue('--status-online').trim() || '#10b981';
+const colorOffline = rootStyle.getPropertyValue('--status-offline').trim() || '#ef4444';
+const colorWarn = rootStyle.getPropertyValue('--status-warn').trim() || '#f59e0b';
+const colorUnknown = rootStyle.getPropertyValue('--status-unknown').trim() || '#64748b';
+
 new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -172,13 +192,20 @@ new Chart(ctx, {
         datasets: [{
             data: [{{ online_count }}, {{ offline_count }}, {{ warning_count }},
                    {{ total_devices }} - {{ online_count }} - {{ offline_count }} - {{ warning_count }}],
-            backgroundColor: ['#198754', '#dc3545', '#ffc107', '#6c757d'],
-            borderWidth: 2,
+            backgroundColor: [colorOnline, colorOffline, colorWarn, colorUnknown],
+            borderWidth: 0,
+            hoverOffset: 4
         }]
     },
     options: {
         responsive: true,
-        plugins: { legend: { position: 'bottom' } }
+        plugins: { 
+            legend: { 
+                position: 'bottom',
+                labels: { padding: 20, usePointStyle: true, boxWidth: 8, font: {family: 'Inter'} }
+            } 
+        },
+        cutout: '75%'
     }
 });
 
@@ -186,7 +213,7 @@ new Chart(ctx, {
 document.getElementById('btn-check-all').addEventListener('click', function() {
     const btn = this;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Проверяем...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Обновление...';
 
     fetch('{% url "check-all-devices" %}', {
         method: 'POST',
@@ -195,7 +222,7 @@ document.getElementById('btn-check-all').addEventListener('click', function() {
     .then(r => r.json())
     .then(data => {
         document.getElementById('check-status').innerHTML =
-            `<div class="alert alert-success alert-dismissible fade show">
+            `<div class="alert alert-success alert-dismissible fade show shadow-sm border-0">
                 <i class="bi bi-check-circle"></i> ${data.message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
              </div>`;
@@ -207,9 +234,14 @@ document.getElementById('btn-check-all').addEventListener('click', function() {
     });
 });
 
-// ===== Закрыть алерт =====
-document.querySelectorAll('.resolve-alert-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
+// ===== Функция привязки событий к кнопкам алертов =====
+function attachResolveBtn(btn) {
+    // Убираем старые листнеры клонированием узла (простой способ)
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    newBtn.addEventListener('click', function(e) {
+        e.stopPropagation(); // чтобы не кликнуть случайно на строку
         const alertId = this.dataset.alertId;
         fetch(`/alerts/${alertId}/resolve/`, {
             method: 'POST',
@@ -219,9 +251,12 @@ document.querySelectorAll('.resolve-alert-btn').forEach(btn => {
         .then(data => {
             if (data.success) {
                 const item = document.getElementById(`alert-item-${alertId}`);
-                item.style.opacity = '0';
-                item.style.transition = 'opacity 0.3s';
-                setTimeout(() => item.remove(), 300);
+                if(item) {
+                    item.style.opacity = '0';
+                    item.style.transition = 'opacity 0.3s';
+                    setTimeout(() => item.remove(), 300);
+                }
+                
                 // Обновить badge
                 const badge = document.getElementById('nav-alert-badge');
                 if (badge) {
@@ -231,7 +266,10 @@ document.querySelectorAll('.resolve-alert-btn').forEach(btn => {
             }
         });
     });
-});
+}
+
+// ===== Инициализация закрытия алертов =====
+document.querySelectorAll('.resolve-alert-btn').forEach(attachResolveBtn);
 
 // ===== AUTO-REFRESH: ping + UI update каждые 30 сек =====
 const STATUS_COLORS = {
@@ -243,6 +281,9 @@ const STATUS_COLORS = {
 
 let countdown = 30;
 const timerEl = document.getElementById('refresh-timer');
+const spinIcon = document.getElementById('refresh-spin');
+const staticIcon = document.getElementById('refresh-icon');
+
 let isChecking = false;
 
 function updateUI(data) {
@@ -276,28 +317,29 @@ function updateUI(data) {
         if (data.alerts.length === 0) {
             alertsList.innerHTML = `
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item text-center text-success py-3" id="no-alerts-msg">
-                        <i class="bi bi-check-circle-fill"></i> Всё в порядке
+                    <li class="list-group-item text-center text-secondary py-5 border-0" id="no-alerts-msg">
+                        <i class="bi bi-shield-check fs-2 text-success opacity-50 d-block mb-2"></i>
+                        Событий не обнаружено
                     </li>
                 </ul>`;
         } else {
             const icons = {
-                'critical': '<i class="bi bi-x-circle-fill text-danger mt-1"></i>',
-                'warning':  '<i class="bi bi-exclamation-triangle-fill text-warning mt-1"></i>',
-                'info':     '<i class="bi bi-info-circle-fill text-info mt-1"></i>',
+                'critical': '<i class="bi bi-circle-fill text-danger fs-6 lh-1 mt-1"></i>',
+                'warning':  '<i class="bi bi-circle-fill text-warning fs-6 lh-1 mt-1"></i>',
+                'info':     '<i class="bi bi-circle-fill text-info fs-6 lh-1 mt-1"></i>',
             };
             const items = data.alerts.map(a => `
-                <li class="list-group-item px-3 py-2" id="alert-item-${a.id}">
-                    <div class="d-flex align-items-start gap-2">
+                <li class="list-group-item px-4 py-3" id="alert-item-${a.id}">
+                    <div class="d-flex align-items-start gap-3">
                         ${icons[a.severity] || icons['info']}
                         <div class="flex-grow-1">
-                            <div class="small fw-semibold">${a.device_name}</div>
-                            <div class="text-muted" style="font-size:0.8rem;">${a.message}</div>
-                            <div class="text-muted" style="font-size:0.75rem;">${a.created_at}</div>
+                            <div class="small fw-semibold text-dark">${a.device_name}</div>
+                            <div class="text-muted mt-1" style="font-size:0.8rem; line-height: 1.4;">${a.message}</div>
+                            <div class="text-black-50 mt-2" style="font-size:0.7rem;">${a.created_at}</div>
                         </div>
-                        <button class="btn btn-outline-success btn-sm py-0 px-1 resolve-alert-btn"
-                                data-alert-id="${a.id}" title="Закрыть алерт">
-                            <i class="bi bi-check-lg"></i>
+                        <button class="btn btn-sm btn-light text-success py-1 px-2 shadow-sm resolve-alert-btn"
+                                data-alert-id="${a.id}" title="Пометить как решённое">
+                            <i class="bi bi-check2"></i>
                         </button>
                     </div>
                 </li>`).join('');
@@ -317,7 +359,7 @@ function updateUI(data) {
             if (link) {
                 const b = document.createElement('span');
                 b.id = 'nav-alert-badge';
-                b.className = 'badge bg-danger rounded-pill ms-1';
+                b.className = 'badge bg-danger rounded-pill shadow-sm';
                 b.textContent = data.active_alerts;
                 link.appendChild(b);
             }
@@ -330,6 +372,11 @@ function updateUI(data) {
 function autoRefresh() {
     if (isChecking) return;
     isChecking = true;
+    
+    if(spinIcon && staticIcon) {
+        spinIcon.style.display = 'inline-block';
+        staticIcon.style.display = 'none';
+    }
 
     // Шаг 1: запустить реальный ping всех устройств
     fetch('{% url "check-all-devices" %}', {
@@ -346,10 +393,18 @@ function autoRefresh() {
         updateUI(data);
         countdown = 30;
         isChecking = false;
+        if(spinIcon && staticIcon) {
+            spinIcon.style.display = 'none';
+            staticIcon.style.display = 'inline-block';
+        }
     })
     .catch(() => {
         countdown = 30;
         isChecking = false;
+        if(spinIcon && staticIcon) {
+            spinIcon.style.display = 'none';
+            staticIcon.style.display = 'inline-block';
+        }
     });
 }
 
