@@ -165,9 +165,13 @@ class TopologyApiView(LoginRequiredMixin, View):
         return JsonResponse(data)
 
     def _make_node(self, d):
+        is_core = 'core' in d.name.lower() or 'perimeter' in d.name.lower()
         return {
             'id':    d.pk,
             'label': d.name,
+            'ip':    str(d.ip_address),
+            'is_core': is_core,
+            'device_type': d.device_type,
             'title': f'{d.ip_address} | {d.get_status_display()} | {d.os_version or d.get_device_type_display()}',
             'shape': self.SHAPES.get(d.device_type, 'ellipse'),
             'color': self.STATUS_COLORS.get(d.status, self.STATUS_COLORS['unknown']),

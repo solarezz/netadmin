@@ -4,105 +4,207 @@
 
 {% block breadcrumbs %}
 <div class="flex items-center text-sm text-slate-500 mb-6">
-    <span class="hover:text-slate-800 cursor-pointer">Главная</span>
+    <span class="hover:text-slate-800 cursor-pointer">Home</span>
     <i class="bi bi-chevron-right text-[10px] mx-2"></i>
-    <span class="hover:text-slate-800 cursor-pointer">Сеть</span>
+    <span class="hover:text-slate-800 cursor-pointer">Network</span>
     <i class="bi bi-chevron-right text-[10px] mx-2"></i>
-    <span class="text-slate-800 font-medium">Топология</span>
+    <span class="text-slate-800 font-medium">Topology</span>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="mb-8 flex justify-between items-end">
+<div class="mb-4 flex flex-wrap justify-between items-end gap-4">
     <div>
-        <h1 class="text-3xl font-bold text-slate-900 mb-2">Топология сети</h1>
-        <p class="text-slate-500 text-sm">Логическая схема связей оборудования, построенная автоматически.</p>
+        <h1 class="text-3xl font-bold text-slate-900 mb-2 mt-0">Network Topology</h1>
+        <p class="text-slate-500 text-sm">Live interactive graph of all network links · Auto-discovered via CDP/LLDP</p>
     </div>
-    <div class="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-sm">
-        <div class="flex items-center text-slate-600 font-medium">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 ring-2 ring-emerald-100"></span> Online
+    <div class="flex gap-4">
+        <div class="flex rounded-md shadow-sm" role="group">
+            <button type="button" class="px-4 py-2 text-sm font-medium text-white bg-slate-900 border border-slate-900 rounded-l-lg hover:bg-slate-800">
+                Physical
+            </button>
+            <button type="button" class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border-t border-b border-r border-slate-200 hover:bg-slate-50">
+                Logical
+            </button>
+            <button type="button" class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border-t border-b border-r border-slate-200 rounded-r-lg hover:bg-slate-50">
+                Subnet
+            </button>
         </div>
-        <div class="flex items-center text-slate-600 font-medium">
-            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-2 ring-2 ring-rose-100"></span> Offline
-        </div>
-        <div class="flex items-center text-slate-600 font-medium">
-            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-2 ring-2 ring-amber-100"></span> Warning
-        </div>
+        <button class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 rounded-md font-medium text-sm transition-colors flex items-center shadow-sm">
+            <i class="bi bi-download mr-2"></i> Export SVG
+        </button>
     </div>
 </div>
 
-<div class="bg-white border border-slate-200 rounded-xl shadow-sm mb-6 relative overflow-hidden">
-    <div id="topology-container" class="w-full h-[600px] outline-none"></div>
+<div class="bg-white border text-center border-slate-200 rounded-xl shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] overflow-hidden relative" style="height: 65vh; min-height: 500px;">
     
+    <!-- Background grid -->
+    <div class="absolute inset-0 z-0 opacity-40 pointer-events-none" style="background-image: radial-gradient(circle, #94a3b8 1px, transparent 1px); background-size: 24px 24px;"></div>
+    
+    <!-- Real Topology Container -->
+    <div id="topology-container" class="absolute inset-0 z-10 outline-none cursor-grab active:cursor-grabbing"></div>
+    
+    <!-- Top-left Status Pill -->
+    <div class="absolute top-6 left-6 z-20 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm px-4 py-2 flex items-center gap-2 text-sm">
+        <span class="font-bold text-slate-800" id="topo-nodes-count">... nodes</span>
+        <span class="text-slate-300">·</span>
+        <span class="text-slate-600" id="topo-edges-count">... links</span>
+        <span class="text-slate-300">·</span>
+        <span class="text-slate-500">Last scan: <span id="topo-last-scan">just now</span></span>
+    </div>
+
+    <!-- Top-right Controls -->
+    <div class="absolute top-6 right-6 z-20 flex flex-col gap-2">
+        <div class="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm flex flex-col overflow-hidden">
+            <button onclick="if(network) network.moveTo({scale: network.getScale() * 1.2})" class="p-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-b border-slate-100 transition-colors" title="Zoom In"><i class="bi bi-zoom-in"></i></button>
+            <button onclick="if(network) network.moveTo({scale: network.getScale() / 1.2})" class="p-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-b border-slate-100 transition-colors" title="Zoom Out"><i class="bi bi-zoom-out"></i></button>
+            <button onclick="if(network) network.fit()" class="p-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" title="Fit to Screen"><i class="bi bi-arrows-fullscreen"></i></button>
+        </div>
+        <button onclick="loadTopology(false)" class="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm p-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" title="Refresh">
+            <i class="bi bi-arrow-repeat"></i>
+        </button>
+    </div>
+
     <!-- Loading overlay -->
-    <div id="topo-loading" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 hidden">
-        <div class="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3"></div>
-        <div class="text-sm font-semibold text-slate-700">Построение графа...</div>
+    <div id="topo-loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center z-30 hidden">
+        <div class="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-4 shadow-sm"></div>
+        <div class="text-sm font-semibold text-slate-700 tracking-wide">Syncing Topology...</div>
     </div>
 </div>
 
-<div class="grid grid-cols-3 gap-6">
-    <div class="col-span-1 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Легенда: Фигуры</h3>
-        <div class="space-y-3 text-sm text-slate-600">
-            <div class="flex items-center"><i class="bi bi-diamond-fill text-blue-500 text-lg mr-3"></i> Маршрутизатор MikroTik</div>
-            <div class="flex items-center"><i class="bi bi-hexagon-fill text-emerald-500 text-lg mr-3"></i> Коммутатор MikroTik</div>
-            <div class="flex items-center"><i class="bi bi-circle-fill text-slate-400 text-lg mr-3"></i> Linux Сервер / Клиент</div>
-        </div>
-    </div>
-    <div class="col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Известные подсети</h3>
-        <div class="grid grid-cols-2 gap-4 text-sm text-slate-600">
-            <div><code class="text-blue-600 bg-blue-50 px-2 py-1 rounded">10.1.1.0/24</code> — Управление (Mgmt)</div>
-            <div><code class="text-blue-600 bg-blue-50 px-2 py-1 rounded">10.1.10.0/24</code> — LAN 1 этаж</div>
-            <div><code class="text-blue-600 bg-blue-50 px-2 py-1 rounded">10.1.20.0/24</code> — LAN 2 этаж</div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const TOPOLOGY_URL = "{% url 'api-topology' %}";
 let network = null;
+let lastScanTime = Date.now();
+window.globalNodesMap = {};
+
+// Helpers to draw standard shapes since SVG paths with external fonts are tricky to inject reliably
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+}
+
+const customRenderer = function({ ctx, id, x, y, state }) {
+    const n = window.globalNodesMap[id];
+    if (!n) return;
+
+    // Draw main circle
+    ctx.beginPath();
+    ctx.arc(x, y, n.size, 0, 2 * Math.PI);
+    ctx.fillStyle = n.color.background;
+    ctx.fill();
+    
+    // Draw border
+    ctx.lineWidth = n.borderWidth;
+    ctx.strokeStyle = state.hover || state.selected ? n.color.highlight.border : n.color.border;
+    ctx.stroke();
+
+    // Draw icon using paths (pure canvas drawing, guarantees 100% render without font issues)
+    const iconColor = n.is_core ? '#ffffff' : n.color.border;
+    ctx.fillStyle = iconColor;
+    ctx.strokeStyle = iconColor;
+    
+    // Switch icon (dots inside rectangle)
+    if (n.device_type === 'mikrotik_switch' || n.device_type === 'linux') {
+        const sw = 16, sh = 8;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        drawRoundedRect(ctx, x - sw/2, y - sh/2, sw, sh, 2);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(x - 3, y, 1, 0, 2 * Math.PI);
+        ctx.arc(x + 3, y, 1, 0, 2 * Math.PI);
+        ctx.fill();
+    } 
+    // Router icon (circle with antennas)
+    else {
+        const rw = 16, rh = 10;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        drawRoundedRect(ctx, x - rw/2, y - rh/2 + 2, rw, rh, 2);
+        ctx.stroke();
+        
+        // Router antennas
+        ctx.beginPath();
+        ctx.moveTo(x - 3, y - rh/2 + 2);
+        ctx.lineTo(x - 3, y - rh/2 - 2);
+        ctx.moveTo(x + 3, y - rh/2 + 2);
+        ctx.lineTo(x + 3, y - rh/2 - 2);
+        ctx.stroke();
+        
+        // Single dot
+        ctx.beginPath();
+        ctx.arc(x, y + 2, 1.5, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+};
 
 function buildTopology(data) {
-    const nodes = new vis.DataSet(data.nodes);
+    // Map data for 1:1 look
+    const nodesArray = data.nodes.map(n => {
+        n.size = n.is_core ? 26 : 22;
+        n.borderWidth = n.is_core ? 0 : 2;
+        n.color = {
+            background: n.is_core ? '#0f172a' : '#ffffff',
+            border: n.color.border || '#10b981',
+            highlight: { 
+                background: n.is_core ? '#1e293b' : '#f8fafc', 
+                border: '#3b82f6' 
+            }
+        };
+        // Multi-line HTML-like label support mapped to <b> for node name, regular for IP
+        n.label = `<b>${n.label}</b>\n${n.ip}`;
+        
+        n.shape = 'custom';
+        n.ctxRenderer = customRenderer;
+        
+        window.globalNodesMap[n.id] = n;
+        return n;
+    });
+
+    const nodes = new vis.DataSet(nodesArray);
     const edges = new vis.DataSet(data.edges);
+
+    document.getElementById('topo-nodes-count').innerText = `${nodesArray.length} nodes`;
+    document.getElementById('topo-edges-count').innerText = `${data.edges.length} links`;
+    lastScanTime = Date.now();
 
     const container = document.getElementById('topology-container');
     const options = {
         nodes: {
-            size: 28,
             font: { 
-                size: 13, 
+                size: 11, 
                 face: 'Inter, sans-serif',
-                color: '#334155',
-                vadjust: 2,
-                multi: true,
-                bold: { color: '#0f172a' } 
+                color: '#64748b', // IP text color
+                vadjust: 0,
+                multi: 'html', // enable <b>
+                bold: { color: '#0f172a', size: 12, face: 'Inter, sans-serif' } // Node name color
             },
-            borderWidth: 2,
-            shadow: {
-                enabled: true,
-                color: 'rgba(0,0,0,0.08)',
-                size: 8,
-                x: 0,
-                y: 3
-            },
-            margin: 10,
+            margin: 12,
         },
         edges: {
-            width: 2,
+            width: 1.5,
             color: { color: '#cbd5e1', highlight: '#94a3b8' },
-            smooth: { type: 'continuous', roundness: 0.5 },
+            smooth: { type: 'continuous', roundness: 0.3 },
+            selectionWidth: 1.5
         },
         physics: {
             solver: 'forceAtlas2Based',
-            forceAtlas2Based: { gravitationalConstant: -180, centralGravity: 0.015, springLength: 200, damping: 0.08 },
-            stabilization: { iterations: 100 },
+            forceAtlas2Based: { gravitationalConstant: -200, centralGravity: 0.015, springLength: 200, damping: 0.1 },
+            stabilization: { iterations: 150 },
         },
-        interaction: { hover: true, tooltipDelay: 100, zoomSpeed: 0.8 },
+        interaction: { hover: true, tooltipDelay: 200, zoomSpeed: 0.8 },
     };
 
     if (network) {
@@ -112,13 +214,13 @@ function buildTopology(data) {
         
         network.on('click', params => {
             if (params.nodes.length) {
-                const node = data.nodes.find(n => n.id === params.nodes[0]);
+                const node = window.globalNodesMap[params.nodes[0]];
                 if (node && node.url) window.location.href = node.url;
             }
         });
         
         network.on('hoverNode', () => { container.style.cursor = 'pointer'; });
-        network.on('blurNode', () => { container.style.cursor = 'default'; });
+        network.on('blurNode', () => { container.style.cursor = 'grab'; });
         
         network.on('stabilizationIterationsDone', function () {
             document.getElementById('topo-loading').classList.add('hidden');
@@ -128,8 +230,25 @@ function buildTopology(data) {
 
 function updateColors(data) {
     if (!network) return;
-    const updates = data.nodes.map(n => ({ id: n.id, color: n.color }));
+    
+    document.getElementById('topo-nodes-count').innerText = `${data.nodes.length} nodes`;
+    document.getElementById('topo-edges-count').innerText = `${data.edges.length} links`;
+    lastScanTime = Date.now();
+    
+    // Only update changed fields to avoid re-rendering layout
+    const updates = data.nodes.map(n => {
+        const old = window.globalNodesMap[n.id];
+        if (old) {
+            old.color.border = n.color.border || '#10b981';
+            old.label = `<b>${n.label}</b>\n${n.ip}`;
+        }
+        return { 
+            id: n.id, 
+            label: `<b>${n.label}</b>\n${n.ip}`
+        };
+    });
     network.body.data.nodes.update(updates);
+    network.redraw(); // force redraw to trigger ctxRenderer with new colors
 }
 
 function loadTopology(initial = false) {
@@ -147,7 +266,16 @@ function loadTopology(initial = false) {
         });
 }
 
+function updateTimeAgo() {
+    const span = document.getElementById('topo-last-scan');
+    if (!span) return;
+    const diff = Math.floor((Date.now() - lastScanTime) / 1000);
+    if (diff < 5) span.innerText = 'just now';
+    else span.innerText = `${diff} sec ago`;
+}
+
 loadTopology(true);
+setInterval(updateTimeAgo, 1000);
 
 let topoCountdown = 30;
 setInterval(() => {
