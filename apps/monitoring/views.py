@@ -166,18 +166,31 @@ class TopologyApiView(LoginRequiredMixin, View):
 
     def _make_node(self, d):
         is_core = 'core' in d.name.lower() or 'perimeter' in d.name.lower()
+        try:
+            from apps.monitoring.models import DeviceMetric
+            metric = DeviceMetric.objects.filter(device=d).first()
+            cpu = metric.cpu_usage if metric else None
+            ram = metric.memory_usage if metric else None
+        except Exception:
+            cpu = None
+            ram = None
         return {
-            'id':    d.pk,
-            'label': d.name,
-            'ip':    str(d.ip_address),
-            'is_core': is_core,
+            'id':          d.pk,
+            'label':       d.name,
+            'ip':          str(d.ip_address),
+            'is_core':     is_core,
             'device_type': d.device_type,
-            'title': f'{d.ip_address} | {d.get_status_display()} | {d.os_version or d.get_device_type_display()}',
+            'model':       d.model or '',
+            'uptime':      d.uptime or '',
+            'cpu':         cpu,
+            'ram':         ram,
+            'title': f'{d.ip_address} | {d.get_status_display()}',
             'shape': self.SHAPES.get(d.device_type, 'ellipse'),
             'color': self.STATUS_COLORS.get(d.status, self.STATUS_COLORS['unknown']),
             'url':   f'/devices/{d.pk}/',
             'status': d.status,
         }
+
 
     def _discover_edges(self, devices, ip_to_device):
         from concurrent.futures import ThreadPoolExecutor, as_completed
