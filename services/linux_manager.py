@@ -124,3 +124,15 @@ class LinuxManager(DeviceConnector):
             return float(output.strip())
         except ValueError:
             return 0.0
+
+    def get_all_ips(self) -> list:
+        output = self.execute_command(
+            "ip -o addr show scope global | awk '{print $4}' | cut -d/ -f1"
+        )
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def get_default_gateway(self) -> str:
+        output = self.execute_command(
+            "ip route show default 2>/dev/null | awk '/via/{print $3; exit}'"
+        )
+        return output.strip()

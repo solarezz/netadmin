@@ -145,7 +145,7 @@ class TopologyApiView(LoginRequiredMixin, View):
     }
 
     _cache = {'data': None, 'ts': 0}
-    CACHE_TTL = 120
+    CACHE_TTL = 30
 
     def get(self, request):
         import time
@@ -193,108 +193,114 @@ class TopologyApiView(LoginRequiredMixin, View):
 
 
     def _discover_edges(self, devices, ip_to_device):
-        from concurrent.futures import ThreadPoolExecutor, as_completed
         from services.mikrotik_manager import MikroTikManager
+        from services.linux_manager import LinuxManager
+        from concurrent.futures import ThreadPoolExecutor
 
-        online_mikrotik = [
-            d for d in devices
-            if 'mikrotik' in d.device_type and d.status == 'online'
-        ]
-        linux_ips = {str(d.ip_address): d for d in devices if d.device_type == 'linux'}
+        pk_to_device  = {d.pk: d for d in devices}
+        mikrotik_devs = sorted([d for d in devices if 'mikrotik' in d.device_type], key=lambda x: x.name)
+        linux_devs    = sorted([d for d in devices if d.device_type == 'linux'],    key=lambda x: x.name)
 
-        def fetch(device):
+        def fetch_mikrotik(device):
             try:
-                with MikroTikManager(device) as mgr:
-                    mndp = mgr.get_neighbors_structured()
-                    arp  = mgr.get_arp_table_structured() if linux_ips else []
-                    return device, mndp, arp
-            except Exception:
-                return device, [], []
-
-        all_results = []
-        with ThreadPoolExecutor(max_workers=4) as pool:
-            futures = {pool.submit(fetch, d): d for d in online_mikrotik}
-            for future in as_completed(futures, timeout=15):
+                mgr = MikroTikManager(device)
+                mgr.connect()
                 try:
-                    all_results.append(future.result())
-                except Exception:
-                    pass
+                    mndp = mgr.get_neighbors_structured()
+                    arp  = mgr.get_arp_table_structured()
+                    gw   = mgr.get_default_gateway()
+                finally:
+                    mgr.disconnect()
+            except Exception:
+                mndp, arp, gw = [], [], ''
+            return device.pk, mndp, arp, gw
 
-        all_results.sort(key=lambda r: r[0].name)
+        def fetch_linux(device):
+            try:
+                mgr = LinuxManager(device)
+                mgr.connect()
+                try:
+                    ips = mgr.get_all_ips()
+                    gw  = mgr.get_default_gateway()
+                finally:
+                    mgr.disconnect()
+            except Exception:
+                ips, gw = [], ''
+            return device.pk, ips, gw
 
-        # Phase 1 — MikroTik↔MikroTik через MNDP.
-        # MNDP на плоской L2-сети видит всех → получаем полную сетку.
-        # Применяем spanning tree чтобы оставить только N-1 рёбер без циклов.
-        mikrotik_edges = set()
-        for device, mndp_nbrs, _ in all_results:
-            for n in mndp_nbrs:
-                neighbor = ip_to_device.get(n['address'])
-                if not neighbor or neighbor.pk == device.pk:
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            mt_futures = [executor.submit(fetch_mikrotik, d) for d in mikrotik_devs]
+            lx_futures = [executor.submit(fetch_linux, d)    for d in linux_devs]
+            mt_results = sorted([f.result() for f in mt_futures], key=lambda x: x[0])
+            lx_results = sorted([f.result() for f in lx_futures], key=lambda x: x[0])
+
+        # Extend IP map with secondary Linux IPs (e.g. 10.1.20.101 → SRV1)
+        extended_ip_map = dict(ip_to_device)
+        for pk, ips, _gw in lx_results:
+            dev = pk_to_device.get(pk)
+            if dev:
+                for ip in ips:
+                    if ip not in extended_ip_map:
+                        extended_ip_map[ip] = dev
+
+        edge_set      = set()
+        lan_connected = set()
+
+        # Phase 1: MikroTik↔MikroTik via MNDP — skip ether1 (management)
+        for pk, mndp, _arp, _gw in mt_results:
+            for nbr in mndp:
+                iface = nbr.get('interface', '')
+                if not iface or iface == 'ether1':
                     continue
-                if 'mikrotik' not in neighbor.device_type:
+                nbr_dev = ip_to_device.get(nbr.get('address', ''))
+                if nbr_dev and nbr_dev.pk != pk and 'mikrotik' in nbr_dev.device_type:
+                    edge = tuple(sorted([pk, nbr_dev.pk]))
+                    edge_set.add(edge)
+                    lan_connected.update([pk, nbr_dev.pk])
+
+        # Phase 2a: Switch ARP → Linux (switches are the preferred L2 connection point)
+        for pk, _mndp, arp, _gw in mt_results:
+            dev = pk_to_device.get(pk)
+            if not dev or dev.device_type != 'mikrotik_switch':
+                continue
+            for entry in arp:
+                if entry.get('interface', '') == 'ether1':
                     continue
-                mikrotik_edges.add(tuple(sorted([device.pk, neighbor.pk])))
+                nbr_dev = extended_ip_map.get(entry.get('ip', ''))
+                if nbr_dev and nbr_dev.pk != pk and nbr_dev.device_type == 'linux':
+                    edge = tuple(sorted([pk, nbr_dev.pk]))
+                    edge_set.add(edge)
+                    lan_connected.update([pk, nbr_dev.pk])
 
-        mikrotik_devices = [d for d in devices if 'mikrotik' in d.device_type]
-        if len(mikrotik_edges) > len(mikrotik_devices) - 1:
-            mikrotik_edges = self._spanning_tree(mikrotik_edges, mikrotik_devices)
-
-        edge_set = set(mikrotik_edges)
-
-        # Phase 2 — Linux серверы через ARP.
-        # Результаты отсортированы по имени устройства → детерминированный порядок.
-        # Не-mgmt интерфейс (не ether1/bridge) имеет приоритет: так сервер
-        # подключится к тому роутеру, у которого он на dedicated-порту, а не на
-        # management-интерфейсе через который доступны все устройства сети.
-        linux_connections = {}
-        for device, _, arp_entries in all_results:
-            for entry in arp_entries:
-                linux = linux_ips.get(entry['ip'])
-                if not linux:
+        # Phase 2b: Router ARP → Linux (only for servers not yet reached via a switch)
+        for pk, _mndp, arp, _gw in mt_results:
+            dev = pk_to_device.get(pk)
+            if not dev or dev.device_type != 'mikrotik_router':
+                continue
+            for entry in arp:
+                if entry.get('interface', '') == 'ether1':
                     continue
-                is_non_mgmt = entry.get('interface', '') not in ('ether1', 'bridge', 'bridge1')
-                existing = linux_connections.get(linux.pk)
-                if not existing or (is_non_mgmt and not existing[1]):
-                    linux_connections[linux.pk] = (device.pk, is_non_mgmt)
+                nbr_dev = extended_ip_map.get(entry.get('ip', ''))
+                if nbr_dev and nbr_dev.pk != pk and nbr_dev.device_type == 'linux':
+                    if nbr_dev.pk not in lan_connected:
+                        edge = tuple(sorted([pk, nbr_dev.pk]))
+                        edge_set.add(edge)
+                        lan_connected.update([pk, nbr_dev.pk])
 
-        for linux_pk, (mikrotik_pk, _) in linux_connections.items():
-            edge_set.add(tuple(sorted([linux_pk, mikrotik_pk])))
+        # Phase 3: Default gateway fallback for devices with no LAN connection found
+        gw_map = {pk: gw for pk, _m, _a, gw in mt_results if gw}
+        gw_map.update({pk: gw for pk, _i, gw in lx_results if gw})
+
+        for pk in sorted(gw_map):
+            if pk in lan_connected:
+                continue
+            gw_dev = ip_to_device.get(gw_map[pk])
+            if gw_dev and gw_dev.pk != pk:
+                edge = tuple(sorted([pk, gw_dev.pk]))
+                edge_set.add(edge)
+                lan_connected.add(pk)
 
         return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(sorted(edge_set))]
-
-    def _spanning_tree(self, edge_set, devices):
-        """BFS spanning tree от самого связного узла (core-роутера).
-        Убирает лишние рёбра полной MNDP-сетки, сохраняя связность графа."""
-        from collections import defaultdict, deque
-
-        adj = defaultdict(list)
-        all_pks = set()
-        for a, b in edge_set:
-            adj[a].append(b)
-            adj[b].append(a)
-            all_pks.add(a)
-            all_pks.add(b)
-
-        if not all_pks:
-            return edge_set
-
-        # Старт с наиболее связного узла (core-роутер имеет максимальный degree)
-        start = max(all_pks, key=lambda p: (len(adj[p]), -p))
-
-        visited = {start}
-        queue = deque([start])
-        tree = set()
-
-        while queue:
-            node = queue.popleft()
-            # Обходим соседей: сначала наиболее связные (стабильный порядок)
-            for nb in sorted(adj[node], key=lambda p: (-len(adj[p]), p)):
-                if nb not in visited:
-                    visited.add(nb)
-                    queue.append(nb)
-                    tree.add(tuple(sorted([node, nb])))
-
-        return tree
 
 
 

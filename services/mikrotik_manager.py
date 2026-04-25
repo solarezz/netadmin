@@ -161,6 +161,18 @@ class MikroTikManager(DeviceConnector):
         return neighbors
 
 
+    def get_default_gateway(self) -> str:
+        """Возвращает IP шлюза из дефолтного маршрута (0.0.0.0/0)."""
+        output = self.execute_command('/ip route print terse where dst-address=0.0.0.0/0')
+        for line in output.splitlines():
+            if '=' not in line:
+                continue
+            p = self._parse_terse_line(line)
+            gw = p.get('gateway', '')
+            if gw:
+                return gw
+        return ''
+
     def get_ospf_neighbors(self) -> list:
         """Returns directly-adjacent OSPF neighbors (Full/2-Way state only).
         Unlike MNDP, OSPF adjacencies reflect actual routing-level connectivity."""
