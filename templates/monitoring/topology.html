@@ -232,6 +232,9 @@
 <script>
 const TOPO_URL = "{% url 'api-topology' %}";
 let scanAt = null;
+let simulation = null;
+let currentNodes = [];
+let isDraggingNode = false;
 
 /* === ICON SVG paths (exact from prototype's icons.jsx) === */
 const ICONS = {
@@ -256,7 +259,7 @@ function edgeColor(srcStatus, tgtStatus) {
 /* === RENDER === */
 function render(data) {
   const canvas = document.getElementById('topo-canvas');
-  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const W = canvas.clientWidth || 800, H = canvas.clientHeight || 600;
 
   /* counters */
   document.getElementById('cnt-nodes').textContent = `${data.nodes.length} nodes`;
@@ -265,61 +268,56 @@ function render(data) {
   document.getElementById('leg-wa').textContent  = data.nodes.filter(n=>n.status==='warning').length;
   document.getElementById('leg-off').textContent = data.nodes.filter(n=>n.status==='offline').length;
 
-  const nodeMap = Object.fromEntries(data.nodes.map(n=>[n.id, n]));
-
-  /* D3 force simulation (synchronous, no animation) */
+  // Preserve previous positions across renders for stability
+  const oldMap = new Map(currentNodes.map(n => [n.id, n]));
   const COUNT = data.nodes.length;
-  // Начальные позиции по кругу (детерминировано, узлы не уходят за экран)
+  
   const nodes = data.nodes.map((n, i) => {
+    const old = oldMap.get(n.id);
+    if (old) {
+      return { ...n, x: old.x, y: old.y, vx: old.vx, vy: old.vy, fx: old.fx, fy: old.fy };
+    }
     const angle = (2 * Math.PI * i) / COUNT;
     const r = Math.min(W, H) * 0.25;
-    return {...n, x: W/2 + r * Math.cos(angle), y: H/2 + r * Math.sin(angle)};
+    return { ...n, x: W/2 + r * Math.cos(angle), y: H/2 + r * Math.sin(angle) };
   });
-  const links = data.edges.map(e => ({...e, source: nodes.find(n=>n.id===e.from), target: nodes.find(n=>n.id===e.to)})).filter(l=>l.source&&l.target);
+  currentNodes = nodes;
 
-  // Адаптивные силы по размеру сети
-  const repulsion = COUNT <= 4 ? -350 : COUNT <= 8 ? -500 : -650;
-  const linkDist  = COUNT <= 4 ? 160  : COUNT <= 8 ? 185  : 210;
+  const nodeMap = Object.fromEntries(nodes.map(n=>[n.id, n]));
+  const links = data.edges.map(e => ({...e, source: nodeMap[e.from], target: nodeMap[e.to]})).filter(l=>l.source&&l.target);
 
-  const sim = d3.forceSimulation(nodes)
+  // Адаптивные силы по размеру сети, слегка увеличенные для большей свободы
+  const repulsion = COUNT <= 4 ? -450 : COUNT <= 8 ? -600 : -800;
+  const linkDist  = COUNT <= 4 ? 180  : COUNT <= 8 ? 220  : 260;
+
+  if (simulation) simulation.stop();
+
+  /* D3 force simulation (Live Interactive animation) */
+  simulation = d3.forceSimulation(nodes)
     .force('link',    d3.forceLink(links).id(d=>d.id).distance(linkDist).strength(0.8))
     .force('charge',  d3.forceManyBody().strength(repulsion))
     .force('center',  d3.forceCenter(W/2, H/2).strength(0.4))
-    .force('collide', d3.forceCollide(62))
-    .stop();
-  for(let i=0;i<500;i++) sim.tick();
+    .force('collide', d3.forceCollide(75)) // Больший радиус для коллизий, чтобы не накладывались
+    .alphaDecay(0.02) // Медленнее затухает, чтобы было видно красивую анимацию
+    .on('tick', ticked);
 
-  /* Clamp to canvas with padding */
-  const PAD = 80;
-  nodes.forEach(n => {
-    n.x = Math.max(PAD, Math.min(W-PAD, n.x));
-    n.y = Math.max(PAD, Math.min(H-PAD, n.y));
-  });
-
+  // Если это первый запуск, прокрутим несколько тиков невидимо, чтобы избежать резкого скачка
+  if (oldMap.size === 0) simulation.tick(25);
 
   /* Remove old nodes */
   canvas.querySelectorAll('.topo-node').forEach(el=>el.remove());
 
   /* SVG edges */
   const svg = document.getElementById('edge-svg');
-  /* keep defs, remove rest */
   Array.from(svg.children).forEach(ch=>{ if(ch.tagName!=='defs') ch.remove(); });
 
   links.forEach((l, i) => {
-    const src = nodeMap[l.from || l.source.id];
-    const tgt = nodeMap[l.to   || l.target.id];
-    if (!src||!tgt) return;
-    const {x:x1,y:y1} = l.source;
-    const {x:x2,y:y2} = l.target;
-    const broken = src.status==='offline' || tgt.status==='offline';
-    const warn   = src.status==='warning' || tgt.status==='warning';
-    const stroke = edgeColor(src.status, tgt.status);
+    const broken = l.source.status==='offline' || l.target.status==='offline';
+    const warn   = l.source.status==='warning' || l.target.status==='warning';
+    const stroke = edgeColor(l.source.status, l.target.status);
 
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-
     const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',x1); line.setAttribute('y1',y1);
-    line.setAttribute('x2',x2); line.setAttribute('y2',y2);
     line.setAttribute('stroke', stroke);
     line.setAttribute('stroke-width', broken ? 1.5 : 2);
     if(broken) line.setAttribute('stroke-dasharray','5 4');
@@ -327,20 +325,21 @@ function render(data) {
     line.setAttribute('stroke-linecap','round');
     g.appendChild(line);
 
-    /* flowing dot (online only) */
+    let am = null;
     if(!broken && !warn) {
       const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
       dot.setAttribute('r','2.5');
       dot.setAttribute('fill','oklch(0.55 0.17 265)');
-      const am = document.createElementNS('http://www.w3.org/2000/svg','animateMotion');
+      am = document.createElementNS('http://www.w3.org/2000/svg','animateMotion');
       am.setAttribute('dur', `${3+(i%3)}s`);
       am.setAttribute('repeatCount','indefinite');
-      am.setAttribute('path',`M${x1},${y1} L${x2},${y2}`);
       dot.appendChild(am);
       g.appendChild(dot);
     }
 
     svg.appendChild(g);
+    l.line = line;
+    l.am = am;
   });
 
   /* HTML nodes */
@@ -351,18 +350,58 @@ function render(data) {
 
     const div = document.createElement('div');
     div.className = 'topo-node';
-    div.style.left = n.x + 'px';
-    div.style.top  = n.y + 'px';
     div.innerHTML = `
       <div class="${cls}">${iconSVG(n.device_type, sz)}</div>
       <div class="node-label">${n.label}</div>
       <div class="node-ip">${n.ip||''}</div>`;
 
-    div.addEventListener('click',  () => { if(n.url) location.href=n.url; });
-    div.addEventListener('mouseenter', (e) => showCard(e, n));
+    const drag = d3.drag()
+      .on("start", (ev) => {
+        if (!ev.active) simulation.alphaTarget(0.3).restart();
+        n.fx = n.x; n.fy = n.y;
+        isDraggingNode = true;
+      })
+      .on("drag", (ev) => {
+        n.fx = ev.x; n.fy = ev.y;
+      })
+      .on("end", (ev) => {
+        if (!ev.active) simulation.alphaTarget(0);
+        n.fx = null; n.fy = null;
+        setTimeout(() => isDraggingNode = false, 50);
+      });
+    d3.select(div).call(drag);
+
+    div.addEventListener('click',  () => { if(n.url && !isDraggingNode) location.href=n.url; });
+    div.addEventListener('mouseenter', (e) => { if (!isDraggingNode) showCard(e, n); });
     div.addEventListener('mouseleave', () => hideCard());
+    
     canvas.appendChild(div);
+    n.el = div;
   });
+
+  function ticked() {
+    const PAD = 50;
+    nodes.forEach(n => {
+      n.x = Math.max(PAD, Math.min(W-PAD, n.x));
+      n.y = Math.max(PAD, Math.min(H-PAD, n.y));
+      if(n.el) {
+        n.el.style.left = n.x + 'px';
+        n.el.style.top  = n.y + 'px';
+      }
+    });
+    
+    links.forEach(l => {
+      if(l.line) {
+        l.line.setAttribute('x1', l.source.x);
+        l.line.setAttribute('y1', l.source.y);
+        l.line.setAttribute('x2', l.target.x);
+        l.line.setAttribute('y2', l.target.y);
+      }
+      if(l.am && l.source.x !== l.target.x) {
+        l.am.setAttribute('path',`M${l.source.x},${l.source.y} L${l.target.x},${l.target.y}`);
+      }
+    });
+  }
 
   scanAt = Date.now();
 }
