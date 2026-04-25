@@ -270,15 +270,26 @@ function render(data) {
 
   // Preserve previous positions across renders for stability
   const oldMap = new Map(currentNodes.map(n => [n.id, n]));
+  // Calculate connections (degree) to find the core hub
+  const degree = {};
+  data.nodes.forEach(n => degree[n.id] = 0);
+  data.edges.forEach(e => { if(e.from) degree[e.from]++; if(e.to) degree[e.to]++; });
+  const maxDegree = Math.max(1, ...Object.values(degree));
+
   const COUNT = data.nodes.length;
-  
   const nodes = data.nodes.map((n, i) => {
+    n.degree = degree[n.id] || 0;
     const old = oldMap.get(n.id);
     if (old) {
       return { ...n, x: old.x, y: old.y, vx: old.vx, vy: old.vy, fx: old.fx, fy: old.fy };
     }
+    // Most connected nodes start perfectly center to prevent crossing lines
+    if (n.degree === maxDegree && maxDegree > 2) {
+       return { ...n, x: W/2, y: H/2 };
+    }
+    // Others start on a wide circle
     const angle = (2 * Math.PI * i) / COUNT;
-    const r = Math.min(W, H) * 0.25;
+    const r = Math.min(W, H) * 0.35; // wider circle
     return { ...n, x: W/2 + r * Math.cos(angle), y: H/2 + r * Math.sin(angle) };
   });
   currentNodes = nodes;
@@ -286,18 +297,21 @@ function render(data) {
   const nodeMap = Object.fromEntries(nodes.map(n=>[n.id, n]));
   const links = data.edges.map(e => ({...e, source: nodeMap[e.from], target: nodeMap[e.to]})).filter(l=>l.source&&l.target);
 
-  // Адаптивные силы по размеру сети, слегка увеличенные для большей свободы
+  // Адаптивные силы
   const repulsion = COUNT <= 4 ? -450 : COUNT <= 8 ? -700 : -900;
   const linkDist  = COUNT <= 4 ? 180  : COUNT <= 8 ? 220  : 260;
 
   if (simulation) simulation.stop();
 
-  /* D3 force simulation (Live Interactive animation) */
+  /* D3 force simulation */
   simulation = d3.forceSimulation(nodes)
     .force('link',    d3.forceLink(links).id(d=>d.id).distance(linkDist).strength(0.8))
     .force('charge',  d3.forceManyBody().strength(repulsion))
     .force('center',  d3.forceCenter(W/2, H/2).strength(0.4))
-    .force('collide', d3.forceCollide(80)) // Больший радиус для коллизий, чтобы не накладывались
+    .force('collide', d3.forceCollide(85)) // Чуть больше чтобы не слеплялись
+    // Небольшая сила стягивающая к центру самые нагруженные узлы (ядра)
+    .force('x', d3.forceX(W/2).strength(d => d.degree === maxDegree ? 0.08 : 0))
+    .force('y', d3.forceY(H/2).strength(d => d.degree === maxDegree ? 0.08 : 0))
     .alphaDecay(0.02)
     .stop();
 
