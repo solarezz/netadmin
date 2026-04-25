@@ -207,66 +207,47 @@ class TopologyApiView(LoginRequiredMixin, View):
                 with MikroTikManager(device) as mgr:
                     mndp = mgr.get_neighbors_structured()
                     arp  = mgr.get_arp_table_structured() if linux_ips else []
-                    try:
-                        ospf = mgr.get_ospf_neighbors()
-                    except Exception:
-                        ospf = []
-                    return device, mndp, arp, ospf
+                    return device, mndp, arp
             except Exception:
-                return device, [], [], []
+                return device, [], []
 
         all_results = []
         with ThreadPoolExecutor(max_workers=4) as pool:
             futures = {pool.submit(fetch, d): d for d in online_mikrotik}
-            for future in as_completed(futures, timeout=20):
+            for future in as_completed(futures, timeout=15):
                 try:
                     all_results.append(future.result())
                 except Exception:
                     pass
 
-        # Sort by device name — guarantees deterministic processing order
         all_results.sort(key=lambda r: r[0].name)
 
-        edge_set = set()
-        ospf_connected = set()  # pks of devices that have at least one confirmed OSPF link
-
-        # Phase 1 — OSPF: only directly-adjacent routing neighbors.
-        # OSPF adjacencies are link-scoped; unlike MNDP they never span multiple hops.
-        for device, _, _, ospf_nbrs in all_results:
-            for nbr in ospf_nbrs:
-                # Try neighbor address first, then OSPF router-id (often = management IP)
-                neighbor = (ip_to_device.get(nbr['address']) or
-                            ip_to_device.get(nbr['router_id']))
-                if not neighbor or 'mikrotik' not in neighbor.device_type:
+        # Phase 1 — MikroTik↔MikroTik через MNDP.
+        # MNDP на плоской L2-сети видит всех → получаем полную сетку.
+        # Применяем spanning tree чтобы оставить только N-1 рёбер без циклов.
+        mikrotik_edges = set()
+        for device, mndp_nbrs, _ in all_results:
+            for n in mndp_nbrs:
+                neighbor = ip_to_device.get(n['address'])
+                if not neighbor or neighbor.pk == device.pk:
                     continue
-                edge_set.add(tuple(sorted([device.pk, neighbor.pk])))
-                ospf_connected.add(device.pk)
-                ospf_connected.add(neighbor.pk)
-
-        # Phase 2 — ARP for non-OSPF MikroTik devices (L2 switches, test routers).
-        # Among all routers that see the device in ARP, pick the alphabetically-first
-        # one that reports it on a non-mgmt interface (deterministic).
-        switch_candidates = {}  # switch_pk -> [(router_pk, is_non_mgmt)]
-        for device, _, arp_entries, _ in all_results:
-            for entry in arp_entries:
-                seen = ip_to_device.get(entry['ip'])
-                if not seen or seen.pk == device.pk:
+                if 'mikrotik' not in neighbor.device_type:
                     continue
-                if 'mikrotik' not in seen.device_type:
-                    continue
-                if seen.pk in ospf_connected:
-                    continue  # already wired via OSPF
-                is_non_mgmt = entry.get('interface', '') not in ('ether1', 'bridge', 'bridge1')
-                switch_candidates.setdefault(seen.pk, []).append((device.pk, is_non_mgmt))
+                mikrotik_edges.add(tuple(sorted([device.pk, neighbor.pk])))
 
-        for switch_pk, candidates in switch_candidates.items():
-            # prefer non-mgmt interface; break ties alphabetically by router_pk
-            candidates.sort(key=lambda c: (not c[1], c[0]))
-            edge_set.add(tuple(sorted([switch_pk, candidates[0][0]])))
+        mikrotik_devices = [d for d in devices if 'mikrotik' in d.device_type]
+        if len(mikrotik_edges) > len(mikrotik_devices) - 1:
+            mikrotik_edges = self._spanning_tree(mikrotik_edges, mikrotik_devices)
 
-        # Phase 3 — ARP for Linux servers (deterministic: sorted device order, non-mgmt wins).
+        edge_set = set(mikrotik_edges)
+
+        # Phase 2 — Linux серверы через ARP.
+        # Результаты отсортированы по имени устройства → детерминированный порядок.
+        # Не-mgmt интерфейс (не ether1/bridge) имеет приоритет: так сервер
+        # подключится к тому роутеру, у которого он на dedicated-порту, а не на
+        # management-интерфейсе через который доступны все устройства сети.
         linux_connections = {}
-        for device, _, arp_entries, _ in all_results:
+        for device, _, arp_entries in all_results:
             for entry in arp_entries:
                 linux = linux_ips.get(entry['ip'])
                 if not linux:
@@ -280,6 +261,40 @@ class TopologyApiView(LoginRequiredMixin, View):
             edge_set.add(tuple(sorted([linux_pk, mikrotik_pk])))
 
         return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(sorted(edge_set))]
+
+    def _spanning_tree(self, edge_set, devices):
+        """BFS spanning tree от самого связного узла (core-роутера).
+        Убирает лишние рёбра полной MNDP-сетки, сохраняя связность графа."""
+        from collections import defaultdict, deque
+
+        adj = defaultdict(list)
+        all_pks = set()
+        for a, b in edge_set:
+            adj[a].append(b)
+            adj[b].append(a)
+            all_pks.add(a)
+            all_pks.add(b)
+
+        if not all_pks:
+            return edge_set
+
+        # Старт с наиболее связного узла (core-роутер имеет максимальный degree)
+        start = max(all_pks, key=lambda p: (len(adj[p]), -p))
+
+        visited = {start}
+        queue = deque([start])
+        tree = set()
+
+        while queue:
+            node = queue.popleft()
+            # Обходим соседей: сначала наиболее связные (стабильный порядок)
+            for nb in sorted(adj[node], key=lambda p: (-len(adj[p]), p)):
+                if nb not in visited:
+                    visited.add(nb)
+                    queue.append(nb)
+                    tree.add(tuple(sorted([node, nb])))
+
+        return tree
 
 
 
