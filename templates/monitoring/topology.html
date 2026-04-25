@@ -283,9 +283,10 @@ function render(data) {
     if (old) {
       return { ...n, x: old.x, y: old.y, vx: old.vx, vy: old.vy, fx: old.fx, fy: old.fy };
     }
-    // Most connected nodes start perfectly center to prevent crossing lines
+    // Most connected node starts slightly off-center (avoids D3's random jiggle
+    // which only triggers when two nodes share the exact same starting coordinate).
     if (n.degree === maxDegree && maxDegree > 2) {
-       return { ...n, x: W/2, y: H/2 };
+       return { ...n, x: W/2 + 1, y: H/2 };
     }
     // Others start on a wide circle
     const angle = (2 * Math.PI * i) / COUNT;
@@ -315,10 +316,11 @@ function render(data) {
     .alphaDecay(0.02)
     .stop();
 
-  // "Сразу красиво": крутим симуляцию синхронно перед рендером
-  // Делаем это ПРИ КАЖДОМ рендере, чтобы узлы мгновенно распутывались 
-  // под новую структуру связей (если она изменилась со временем).
-  for(let i=0; i<300; i++) simulation.tick();
+  // On first load run 300 ticks so the graph appears settled immediately.
+  // On auto-refresh old positions are already stable, so 30 ticks is enough
+  // to absorb any minor topology change without drifting the layout.
+  const tickCount = oldMap.size > 0 ? 30 : 300;
+  for(let i=0; i<tickCount; i++) simulation.tick();
 
   // Запускаем асинхронный тик для работы Drag and Drop
   simulation.on('tick', ticked);

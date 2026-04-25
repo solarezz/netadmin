@@ -145,7 +145,7 @@ class TopologyApiView(LoginRequiredMixin, View):
     }
 
     _cache = {'data': None, 'ts': 0}
-    CACHE_TTL = 60
+    CACHE_TTL = 120
 
     def get(self, request):
         import time
@@ -202,8 +202,6 @@ class TopologyApiView(LoginRequiredMixin, View):
         ]
         linux_ips = {str(d.ip_address): d for d in devices if d.device_type == 'linux'}
 
-        edge_set = set()
-
         def fetch(device):
             try:
                 with MikroTikManager(device) as mgr:
@@ -213,82 +211,59 @@ class TopologyApiView(LoginRequiredMixin, View):
             except Exception:
                 return device, [], []
 
-        linux_connections = {}
-
+        all_results = []
         with ThreadPoolExecutor(max_workers=4) as pool:
             futures = {pool.submit(fetch, d): d for d in online_mikrotik}
             for future in as_completed(futures, timeout=15):
                 try:
-                    device, neighbors, arp_entries = future.result()
-
-                    # MikroTik ↔ MikroTik: все обнаруженные соседи
-                    # (spanning tree отфильтрует избыточные рёбра)
-                    for n in neighbors:
-                        neighbor = ip_to_device.get(n['address'])
-                        if neighbor:
-                            edge_set.add(tuple(sorted([device.pk, neighbor.pk])))
-
-                    # ARP: MikroTik ↔ Linux (только не-mgmt интерфейсы)
-                    for entry in arp_entries:
-                        linux = linux_ips.get(entry['ip'])
-                        if not linux:
-                            continue
-                        is_non_mgmt = entry.get('interface', '') not in ('ether1', 'bridge', 'bridge1')
-                        existing = linux_connections.get(linux.pk)
-                        if not existing or (is_non_mgmt and not existing[1]):
-                            linux_connections[linux.pk] = (device.pk, is_non_mgmt)
+                    all_results.append(future.result())
                 except Exception:
                     pass
+
+        # Sort by device name for deterministic edge building
+        all_results.sort(key=lambda r: r[0].name)
+
+        # Build per-device neighbor sets for bidirectional check
+        device_neighbor_map = {}
+        for device, neighbors, _ in all_results:
+            device_neighbor_map[device.pk] = {
+                ip_to_device[n['address']].pk
+                for n in neighbors
+                if n.get('address') in ip_to_device and ip_to_device[n['address']].pk != device.pk
+            }
+
+        edge_set = set()
+
+        # MikroTik ↔ MikroTik: only bidirectional MNDP pairs are real physical links.
+        # MNDP is a broadcast protocol that sees all devices on the same L2 domain,
+        # so we require both sides to report each other to filter multi-hop noise.
+        for device, neighbors, _ in all_results:
+            for n in neighbors:
+                neighbor = ip_to_device.get(n['address'])
+                if not neighbor or neighbor.pk == device.pk:
+                    continue
+                if 'mikrotik' not in neighbor.device_type:
+                    continue
+                if device.pk in device_neighbor_map.get(neighbor.pk, set()):
+                    edge_set.add(tuple(sorted([device.pk, neighbor.pk])))
+
+        # ARP: MikroTik ↔ Linux — processed in sorted order so the result is
+        # deterministic (first non-mgmt interface seen wins).
+        linux_connections = {}
+        for device, _, arp_entries in all_results:
+            for entry in arp_entries:
+                linux = linux_ips.get(entry['ip'])
+                if not linux:
+                    continue
+                is_non_mgmt = entry.get('interface', '') not in ('ether1', 'bridge', 'bridge1')
+                existing = linux_connections.get(linux.pk)
+                if not existing or (is_non_mgmt and not existing[1]):
+                    linux_connections[linux.pk] = (device.pk, is_non_mgmt)
 
         for linux_pk, (mikrotik_pk, _) in linux_connections.items():
             edge_set.add(tuple(sorted([linux_pk, mikrotik_pk])))
 
-        # Защита: если граф слишком плотный (>= N*(N-1)/3 рёбер = треть полной сетки),
-        # применяем spanning tree чтобы устранить пентаграмму.
-        n_nodes = len(devices)
-        # Полная сетка = N*(N-1)/2; если больше трети — это уже сетка, применяем spanning tree
-        full_mesh_third = max(n_nodes - 1, (n_nodes * (n_nodes - 1)) // 6)
-        if len(edge_set) > full_mesh_third:
-            edge_set = self._spanning_tree(edge_set, devices)
-
-        return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(edge_set)]
-
-    def _spanning_tree(self, edge_set, devices):
-        """BFS spanning tree — убирает избыточные рёбра, сохраняет связность."""
-        from collections import defaultdict, deque
-
-        adj = defaultdict(list)
-        all_pks = set()
-        for a, b in edge_set:
-            adj[a].append(b)
-            adj[b].append(a)
-            all_pks.add(a); all_pks.add(b)
-
-        if not all_pks:
-            return edge_set
-
-        # Стартуем с наиболее связного узла (скорее всего core)
-        core_pks = {d.pk for d in devices if 'core' in d.name.lower() or 'perimeter' in d.name.lower()}
-        start = min(core_pks) if core_pks else max(all_pks, key=lambda p: (len(adj[p]), -p))
-
-        visited = {start}
-        queue = deque([start])
-        tree = set()
-
-        while queue:
-            node = queue.popleft()
-            for nb in sorted(adj[node], key=lambda p: (-len(adj[p]), p)):  # stable sort guarantees deterministic tree
-                if nb not in visited:
-                    visited.add(nb)
-                    queue.append(nb)
-                    tree.add(tuple(sorted([node, nb])))
-
-        # Добавляем изолированные узлы (нет рёбер)
-        all_device_pks = {d.pk for d in devices}
-        for pk in all_device_pks - all_pks:
-            pass  # изолированные узлы без рёбер, просто отображаются
-
-        return tree
+        return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(sorted(edge_set))]
 
 
 
