@@ -3,6 +3,7 @@ from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from apps.accounts.mixins import OperatorRequiredMixin
 from django.contrib import messages
+from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -16,24 +17,60 @@ class DeviceListView(LoginRequiredMixin, ListView):
     model = Device
     template_name = 'devices/device_list.html'
     context_object_name = 'devices'
-    paginate_by = 25
+    paginate_by = 10
 
     def get_queryset(self):
         qs = super().get_queryset()
-        device_type = self.request.GET.get('type')
-        status = self.request.GET.get('status')
+        device_type = self.request.GET.get('type', '').strip()
+        status      = self.request.GET.get('status', '').strip()
+        q           = self.request.GET.get('q', '').strip()
         if device_type:
             qs = qs.filter(device_type=device_type)
         if status:
             qs = qs.filter(status=status)
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q) |
+                Q(ip_address__icontains=q) |
+                Q(model__icontains=q)
+            )
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['device_types'] = DeviceType.choices
-        ctx['statuses'] = DeviceStatus.choices
-        ctx['selected_type'] = self.request.GET.get('type', '')
+
+        # Global counts (unfiltered) for tab badges
+        agg = Device.objects.aggregate(
+            total=Count('pk'),
+            online=Count('pk',  filter=Q(status=DeviceStatus.ONLINE)),
+            offline=Count('pk', filter=Q(status=DeviceStatus.OFFLINE)),
+            warning=Count('pk', filter=Q(status=DeviceStatus.WARNING)),
+        )
+        ctx['count_total']   = agg['total']
+        ctx['count_online']  = agg['online']
+        ctx['count_offline'] = agg['offline']
+        ctx['count_warning'] = agg['warning']
+
+        # Active alerts count
+        from apps.monitoring.models import Alert
+        ctx['count_alerts'] = Alert.objects.filter(is_resolved=False).count()
+
+        # Filter state for re-rendering
+        ctx['device_types']    = DeviceType.choices
+        ctx['statuses']        = DeviceStatus.choices
+        ctx['selected_type']   = self.request.GET.get('type', '')
         ctx['selected_status'] = self.request.GET.get('status', '')
+        ctx['selected_q']      = self.request.GET.get('q', '')
+
+        # Latest metric per device (current page only — one query)
+        from apps.monitoring.models import DeviceMetric
+        device_pks = [d.pk for d in ctx['devices']]
+        latest_metrics = {}
+        for m in DeviceMetric.objects.filter(device_id__in=device_pks).order_by('-timestamp'):
+            if m.device_id not in latest_metrics:
+                latest_metrics[m.device_id] = m
+        ctx['latest_metrics'] = latest_metrics
+
         return ctx
 
 

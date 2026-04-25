@@ -1,170 +1,582 @@
 {% extends 'base.html' %}
+{% load device_tags %}
 
-{% block title %}Оборудование{% endblock %}
+{% block title %}Устройства{% endblock %}
 
 {% block breadcrumbs %}
-<div class="flex items-center text-sm text-slate-500 mb-6">
-    <span class="hover:text-slate-800 cursor-pointer">Главная</span>
+<div class="flex items-center text-sm text-slate-500 mb-3">
+    <span>Главная</span>
     <i class="bi bi-chevron-right text-[10px] mx-2"></i>
-    <span class="hover:text-slate-800 cursor-pointer">Сеть</span>
+    <span>Сеть</span>
     <i class="bi bi-chevron-right text-[10px] mx-2"></i>
-    <span class="text-slate-800 font-medium">Оборудование</span>
+    <span class="text-slate-800 font-medium">Устройства</span>
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+/* ── design tokens ──────────────────────────── */
+.dl {
+  --c-border:   oklch(0.92 0.006 250);
+  --c-border-s: oklch(0.88 0.008 250);
+  --c-surface:  #ffffff;
+  --c-surface2: oklch(0.97 0.005 250);
+  --c-text:     oklch(0.22 0.02 265);
+  --c-text2:    oklch(0.45 0.02 265);
+  --c-text3:    oklch(0.62 0.015 265);
+  --c-primary:  oklch(0.55 0.17 265);
+  --c-sidebar:  oklch(0.22 0.04 265);
+  --c-online:   oklch(0.62 0.15 155);
+  --c-online-bg:oklch(0.95 0.04 155);
+  --c-offline:  oklch(0.58 0.20 20);
+  --c-offline-bg:oklch(0.95 0.035 20);
+  --c-warn:     oklch(0.72 0.15 75);
+  --c-warn-bg:  oklch(0.96 0.05 75);
+  --r:          10px;
+  --sh-sm:      0 1px 2px rgba(15,23,42,.04),0 1px 1px rgba(15,23,42,.03);
+}
+
+/* ── page head ──────────────────────────────── */
+.dl-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:22px; gap:20px; }
+.dl-title { font-size:22px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px; color:var(--c-text); }
+.dl-sub   { color:var(--c-text2); font-size:13.5px; }
+.dl-actions { display:flex; gap:10px; align-items:center; }
+
+/* ── buttons ────────────────────────────────── */
+.dl .dl-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:13px; font-weight:500; padding:7px 13px;
+  border-radius:7px; border:1px solid var(--c-border);
+  background:var(--c-surface); color:var(--c-text);
+  transition:all 120ms; white-space:nowrap; text-decoration:none;
+  cursor:pointer;
+}
+.dl .dl-btn:hover { background:var(--c-surface2); border-color:var(--c-border-s); }
+.dl .dl-btn-primary {
+  background:var(--c-sidebar); color:#fff; border-color:var(--c-sidebar);
+}
+.dl .dl-btn-primary:hover { background:oklch(0.26 0.05 265); border-color:oklch(0.26 0.05 265); }
+
+/* ── stat cards ─────────────────────────────── */
+.dl-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.dl-stat {
+  background:var(--c-surface); border:1px solid var(--c-border);
+  border-radius:var(--r); padding:16px 18px;
+  display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  transition:border-color 150ms, box-shadow 150ms;
+}
+.dl-stat:hover { border-color:var(--c-border-s); box-shadow:var(--sh-sm); }
+.dl-stat-label { font-size:12px; color:var(--c-text2); font-weight:500; letter-spacing:.01em; margin-bottom:6px; }
+.dl-stat-value { font-size:26px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+.dl-stat-delta { font-size:11.5px; margin-top:6px; color:var(--c-text3); }
+.dl-stat-icon {
+  width:36px; height:36px; border-radius:9px;
+  display:grid; place-items:center; flex-shrink:0;
+}
+.dl-stat-icon-total   { background:oklch(0.95 0.03 265);    color:var(--c-primary); }
+.dl-stat-icon-online  { background:var(--c-online-bg);      color:var(--c-online);  }
+.dl-stat-icon-offline { background:var(--c-offline-bg);     color:var(--c-offline); }
+.dl-stat-icon-alert   { background:var(--c-warn-bg);        color:var(--c-warn);    }
+
+/* ── card ───────────────────────────────────── */
+.dl-card {
+  background:var(--c-surface); border:1px solid var(--c-border);
+  border-radius:var(--r); overflow:hidden;
+}
+.dl-card-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-bottom:1px solid var(--c-border); gap:12px;
+}
+.dl-card-title { font-size:14.5px; font-weight:600; color:var(--c-text); }
+.dl-card-sub   { font-size:12px; color:var(--c-text3); margin-top:2px; }
+
+/* ── filter bar ─────────────────────────────── */
+.dl-fbar {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 16px; border-bottom:1px solid var(--c-border);
+  background:var(--c-surface2); flex-wrap:wrap;
+}
+.dl-tabs {
+  display:flex; background:var(--c-surface);
+  border:1px solid var(--c-border); border-radius:8px; padding:3px; gap:2px;
+}
+.dl-tab {
+  font-size:12.5px; font-weight:500; padding:5px 11px; border-radius:5px;
+  color:var(--c-text2); display:flex; align-items:center; gap:6px;
+  cursor:pointer; background:none; border:none; white-space:nowrap; transition:color 100ms;
+}
+.dl-tab:hover { color:var(--c-text); }
+.dl-tab.active { background:var(--c-sidebar); color:#fff; }
+.dl-tab-count {
+  font-size:11px; padding:0 5px; border-radius:8px;
+  background:var(--c-surface2); color:var(--c-text2); font-weight:600;
+}
+.dl-tab.active .dl-tab-count { background:rgba(255,255,255,.18); color:#fff; }
+.dl-select {
+  border:1px solid var(--c-border); background:var(--c-surface);
+  padding:6px 10px; border-radius:7px; font-size:12.5px;
+  color:var(--c-text); outline:none; cursor:pointer;
+  transition:border-color 120ms; font-family:inherit;
+}
+.dl-select:focus { border-color:var(--c-border-s); }
+.dl-spacer { flex:1; }
+.dl-search {
+  display:flex; align-items:center; gap:7px;
+  background:var(--c-surface); border:1px solid var(--c-border);
+  border-radius:7px; padding:5px 10px; width:260px;
+  transition:border-color 150ms, box-shadow 150ms;
+}
+.dl-search:focus-within {
+  border-color:var(--c-primary);
+  box-shadow:0 0 0 3px oklch(0.55 0.17 265 / 0.12);
+}
+.dl-search input { border:none; outline:none; background:transparent; flex:1; font-size:12.5px; font-family:inherit; }
+
+/* ── table ──────────────────────────────────── */
+.dl-wrap   { overflow-x:auto; }
+.dl-table  { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+.dl-table th {
+  text-align:left; font-weight:500; color:var(--c-text3);
+  padding:10px 16px; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.06em; background:var(--c-surface2);
+  border-bottom:1px solid var(--c-border); white-space:nowrap;
+}
+.dl-table td {
+  padding:12px 16px; border-bottom:1px solid var(--c-border);
+  vertical-align:middle; color:var(--c-text);
+}
+.dl-table tbody tr { transition:background 100ms; cursor:pointer; }
+.dl-table tbody tr:hover { background:oklch(0.98 0.01 265); }
+.dl-table tbody tr:last-child td { border-bottom:none; }
+.dl-check { width:36px; padding-right:0 !important; }
+.dl-check input { margin:0; }
+.dl-nowrap { white-space:nowrap; }
+
+/* ── status badge ───────────────────────────── */
+.dl-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:11.5px; font-weight:600; padding:2.5px 9px 2.5px 7px;
+  border-radius:100px; line-height:1.4; white-space:nowrap;
+}
+.dl-badge .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.dl-badge-online  { background:var(--c-online-bg);  color:oklch(0.42 0.13 155); }
+.dl-badge-online  .dot { background:var(--c-online);  box-shadow:0 0 0 2.5px oklch(0.62 0.15 155 / 0.22); }
+.dl-badge-offline { background:var(--c-offline-bg); color:oklch(0.42 0.17 20);  }
+.dl-badge-offline .dot { background:var(--c-offline); }
+.dl-badge-warning { background:var(--c-warn-bg);    color:oklch(0.45 0.12 60);  }
+.dl-badge-warning .dot { background:var(--c-warn);  }
+.dl-badge-unknown { background:var(--c-surface2);   color:var(--c-text2); border:1px solid var(--c-border); }
+.dl-badge-unknown .dot { background:var(--c-text3); }
+
+/* ── device cell ────────────────────────────── */
+.dl-dev { display:flex; align-items:center; gap:10px; }
+.dl-dev-icon {
+  width:30px; height:30px; border-radius:7px;
+  background:var(--c-surface2); border:1px solid var(--c-border);
+  display:grid; place-items:center; color:var(--c-text2); flex-shrink:0;
+}
+.dl-dev-title { font-weight:600; font-size:13px; color:var(--c-text); }
+.dl-dev-loc   { font-size:11.5px; color:var(--c-text3); }
+.dl-ip  { font-family:'JetBrains Mono','Courier New',monospace; font-size:12.5px; }
+.dl-model { font-size:12.5px; }
+.dl-model-sub { font-size:11.5px; color:var(--c-text3); }
+.dl-dim { color:var(--c-text3); }
+.dl-uptime { font-family:'JetBrains Mono','Courier New',monospace; font-size:12px; color:var(--c-text2); }
+
+/* ── metric bars ─────────────────────────────── */
+.dl-metric { display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:4px; }
+.dl-metric:last-child { margin-bottom:0; }
+.dl-mbar  { width:52px; height:5px; background:var(--c-surface2); border-radius:3px; overflow:hidden; border:1px solid var(--c-border); }
+.dl-mfill { height:100%; background:var(--c-online); transition:width 400ms ease; border-radius:3px; }
+.dl-mfill.warn { background:var(--c-warn); }
+.dl-mfill.high { background:var(--c-offline); }
+
+/* ── action buttons ──────────────────────────── */
+.dl-acts { display:flex; gap:2px; justify-content:flex-end; }
+.dl-act {
+  width:28px; height:28px; border-radius:6px;
+  display:grid; place-items:center; color:var(--c-text3);
+  transition:all 120ms; background:none; border:none; cursor:pointer;
+  text-decoration:none;
+}
+.dl-act:hover { background:var(--c-surface2); color:var(--c-text); }
+.dl-act.danger:hover { background:var(--c-offline-bg); color:var(--c-offline); }
+
+/* ── pagination ──────────────────────────────── */
+.dl-pager {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 18px; border-top:1px solid var(--c-border);
+  background:var(--c-surface2); font-size:12.5px; color:var(--c-text2);
+}
+.dl-pnav { display:flex; gap:4px; align-items:center; }
+.dl-pbtn {
+  min-width:30px; height:30px; padding:0 8px; border-radius:6px;
+  font-size:12.5px; color:var(--c-text2); display:grid; place-items:center;
+  border:1px solid transparent; cursor:pointer;
+  background:none; transition:all 120ms; text-decoration:none;
+}
+.dl-pbtn:hover { background:var(--c-surface); border-color:var(--c-border); color:var(--c-text); }
+.dl-pbtn.active { background:var(--c-sidebar); color:#fff; font-weight:600; border-color:var(--c-sidebar); }
+.dl-pbtn:disabled, .dl-pbtn.disabled { opacity:.35; pointer-events:none; cursor:not-allowed; }
+
+/* ── empty state ─────────────────────────────── */
+.dl-empty { text-align:center; padding:48px 20px; color:var(--c-text3); }
+.dl-empty-icon {
+  width:48px; height:48px; border-radius:50%;
+  background:var(--c-surface2); display:grid; place-items:center;
+  margin:0 auto 12px; color:var(--c-text3);
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="mb-8 flex justify-between items-end">
-    <div>
-        <h1 class="text-3xl font-bold text-slate-900 mb-2">Оборудование</h1>
-        <p class="text-slate-500 text-sm">Управление сетевыми устройствами и серверами</p>
-    </div>
+<div class="dl">
+
+{# ── Page Header ─────────────────────────────── #}
+<div class="dl-head">
+  <div>
+    <h1 class="dl-title">Сетевой обзор</h1>
+    <p class="dl-sub">Мониторинг и управление сетевыми устройствами</p>
+  </div>
+  <div class="dl-actions">
+    <button class="dl-btn" onclick="refreshDevices(this)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.65 4.36A9 9 0 0 0 20.5 15"/></svg>
+      Обновить
+    </button>
     {% if is_operator %}
-    <a href="{% url 'device-add' %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors flex items-center">
-        <i class="bi bi-plus-lg mr-2"></i> Добавить устройство
+    <a href="{% url 'device-add' %}" class="dl-btn dl-btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Добавить устройство
     </a>
     {% endif %}
+  </div>
 </div>
 
-<!-- Фильтры -->
-<div class="bg-white border border-slate-200 rounded-xl shadow-sm mb-6 px-6 py-4">
-    <form method="get" class="flex flex-wrap items-center gap-4">
-        <div>
-            <label class="sr-only" for="typeSelect">Тип устройства</label>
-            <select name="type" id="typeSelect" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-48 p-2">
-                <option value="">Все типы</option>
-                {% for val, label in device_types %}
-                    <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label class="sr-only" for="statusSelect">Статус</label>
-            <select name="status" id="statusSelect" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-48 p-2">
-                <option value="">Все статусы</option>
-                {% for val, label in statuses %}
-                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-md text-sm px-4 py-2 flex items-center transition-colors">
-                <i class="bi bi-funnel mr-2"></i> Применить
-            </button>
-        </div>
-        {% if selected_type or selected_status %}
-        <div class="ml-auto">
-            <a href="{% url 'device-list' %}" class="text-rose-500 hover:text-rose-700 text-sm font-medium flex items-center">
-                <i class="bi bi-x-circle mr-1"></i> Сбросить
-            </a>
-        </div>
-        {% endif %}
-    </form>
-</div>
-
-<!-- Таблица -->
-<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
-    <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
-                    <th class="px-6 py-4 w-12"></th>
-                    <th class="px-6 py-4">Имя оборудования</th>
-                    <th class="px-6 py-4">Тип</th>
-                    <th class="px-6 py-4">IP-адрес</th>
-                    <th class="px-6 py-4">Модель</th>
-                    <th class="px-6 py-4">OS</th>
-                    <th class="px-6 py-4">Статус</th>
-                    <th class="px-6 py-4">Последний ответ</th>
-                    <th class="px-6 py-4 text-right">Действия</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 text-sm">
-                {% for device in devices %}
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="w-2.5 h-2.5 rounded-full {% if device.status == 'online' %}bg-emerald-500 ring-2 ring-emerald-100{% elif device.status == 'offline' %}bg-rose-500 ring-2 ring-rose-100{% elif device.status == 'warning' %}bg-amber-500 ring-2 ring-amber-100{% else %}bg-slate-400 ring-2 ring-slate-100{% endif %}" title="{{ device.get_status_display }}"></div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-900">
-                        <a href="{% url 'device-detail' device.pk %}" class="hover:text-blue-600 transition-colors">{{ device.name }}</a>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
-                            {{ device.get_device_type_display }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <code class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{{ device.ip_address }}</code>
-                    </td>
-                    <td class="px-6 py-4 text-slate-500">{{ device.model|default:"—" }}</td>
-                    <td class="px-6 py-4 text-slate-500 truncate max-w-[140px]" title="{{ device.os_version }}">
-                        {{ device.os_version|default:"—" }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        {% if device.status == 'online' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Online</span>
-                        {% elif device.status == 'offline' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/10">Offline</span>
-                        {% elif device.status == 'warning' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">Предупреждение</span>
-                        {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">Неизвестно</span>
-                        {% endif %}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-500 text-xs">
-                        {% if device.last_seen %}{{ device.last_seen|date:"d.m.Y H:i" }}{% else %}—{% endif %}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="{% url 'device-detail' device.pk %}" class="text-slate-400 hover:text-slate-600 mx-1" title="Детали">
-                            <i class="bi bi-eye text-lg"></i>
-                        </a>
-                        {% if is_operator %}
-                        <a href="{% url 'device-edit' device.pk %}" class="text-blue-400 hover:text-blue-600 mx-1" title="Редактировать">
-                            <i class="bi bi-pencil-square text-lg"></i>
-                        </a>
-                        <a href="{% url 'device-delete' device.pk %}" class="text-rose-400 hover:text-rose-600 mx-1 border-l pl-2 border-slate-200" title="Удалить">
-                            <i class="bi bi-trash text-lg"></i>
-                        </a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="9" class="px-6 py-12 text-center text-slate-500 font-medium">
-                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                            <i class="bi bi-pc-display text-3xl"></i>
-                        </div>
-                        Оборудование не найдено
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{# ── Stat Cards ──────────────────────────────── #}
+<div class="dl-stats">
+  <div class="dl-stat">
+    <div>
+      <div class="dl-stat-label">Всего устройств</div>
+      <div class="dl-stat-value">{{ count_total }}</div>
+      <div class="dl-stat-delta">активных в сети</div>
     </div>
+    <div class="dl-stat-icon dl-stat-icon-total">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </div>
+  </div>
+  <div class="dl-stat">
+    <div>
+      <div class="dl-stat-label">Онлайн</div>
+      <div class="dl-stat-value" style="color:oklch(0.62 0.15 155)">{{ count_online }}</div>
+      <div class="dl-stat-delta">
+        <span style="font-family:monospace">{% if count_total %}{% widthratio count_online count_total 100 %}{% else %}0{% endif %}%</span>
+        <span style="margin-left:4px">доступность</span>
+      </div>
+    </div>
+    <div class="dl-stat-icon dl-stat-icon-online">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+  </div>
+  <div class="dl-stat">
+    <div>
+      <div class="dl-stat-label">Офлайн</div>
+      <div class="dl-stat-value" style="color:oklch(0.58 0.20 20)">{{ count_offline }}</div>
+      <div class="dl-stat-delta">недоступно</div>
+    </div>
+    <div class="dl-stat-icon dl-stat-icon-offline">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+  </div>
+  <div class="dl-stat">
+    <div>
+      <div class="dl-stat-label">Активные алерты</div>
+      <div class="dl-stat-value" style="color:oklch(0.72 0.15 75)">{{ count_alerts }}</div>
+      <div class="dl-stat-delta">требуют внимания</div>
+    </div>
+    <div class="dl-stat-icon dl-stat-icon-alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
+  </div>
 </div>
 
-{% if is_paginated %}
-<nav class="flex items-center justify-center space-x-1 mt-8">
-    {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" class="px-3 py-2 bg-white border border-slate-200 text-slate-500 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium">
-        &laquo; Назад
-    </a>
-    {% endif %}
-    
-    {% for num in page_obj.paginator.page_range %}
+{# ── Main Card ───────────────────────────────── #}
+<form method="get" id="dl-form" class="dl-card">
+
+  {# Hidden inputs carry filter state #}
+  <input type="hidden" name="status" id="flt-status" value="{{ selected_status }}">
+  <input type="hidden" name="type"   id="flt-type-h" value="{{ selected_type }}">
+
+  {# Card header #}
+  <div class="dl-card-head">
+    <div>
+      <div class="dl-card-title">Все устройства</div>
+      <div class="dl-card-sub">
+        Показано {{ devices|length }} из {{ page_obj.paginator.count }}{% if page_obj.paginator.count != count_total %} (отфильтровано из {{ count_total }}){% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="dl-btn" style="padding:5px 10px;font-size:12.5px;"
+              onclick="document.getElementById('dl-form').reset();window.location.href='{% url 'device-list' %}'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg>
+        Сбросить фильтры
+      </button>
+    </div>
+  </div>
+
+  {# Filter bar #}
+  <div class="dl-fbar">
+    {# Status tabs #}
+    <div class="dl-tabs">
+      <button type="button" class="dl-tab {% if not selected_status %}active{% endif %}"
+              onclick="setStatus('')">
+        Все <span class="dl-tab-count">{{ count_total }}</span>
+      </button>
+      <button type="button" class="dl-tab {% if selected_status == 'online' %}active{% endif %}"
+              onclick="setStatus('online')">
+        Онлайн <span class="dl-tab-count">{{ count_online }}</span>
+      </button>
+      <button type="button" class="dl-tab {% if selected_status == 'offline' %}active{% endif %}"
+              onclick="setStatus('offline')">
+        Офлайн <span class="dl-tab-count">{{ count_offline }}</span>
+      </button>
+      <button type="button" class="dl-tab {% if selected_status == 'warning' %}active{% endif %}"
+              onclick="setStatus('warning')">
+        Предупреждение <span class="dl-tab-count">{{ count_warning }}</span>
+      </button>
+    </div>
+
+    {# Type select #}
+    <select class="dl-select" id="flt-type" onchange="setType(this.value)">
+      <option value="">Все типы</option>
+      {% for val, label in device_types %}
+      <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="dl-spacer"></div>
+
+    {# Search #}
+    <div class="dl-search">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.62 0.015 265)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" name="q" id="flt-q" placeholder="Поиск по имени, IP, модели..."
+             value="{{ selected_q }}" autocomplete="off">
+    </div>
+  </div>
+
+  {# Table #}
+  <div class="dl-wrap">
+    <table class="dl-table">
+      <thead>
+        <tr>
+          <th class="dl-check"><input type="checkbox" id="chk-all" onclick="toggleAll(this)"></th>
+          <th>Статус</th>
+          <th>Устройство</th>
+          <th>IP-адрес</th>
+          <th>Модель и ОС</th>
+          <th>ЦП / ОЗУ</th>
+          <th>Аптайм</th>
+          <th style="text-align:right">Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for device in devices %}
+        {% with metric=latest_metrics|get_item:device.pk %}
+        <tr onclick="location.href='{% url 'device-detail' device.pk %}'">
+          <td class="dl-check" onclick="event.stopPropagation()"><input type="checkbox" class="row-chk"></td>
+
+          {# Status badge #}
+          <td class="dl-nowrap">
+            {% if device.status == 'online' %}
+              <span class="dl-badge dl-badge-online"><span class="dot"></span>Онлайн</span>
+            {% elif device.status == 'offline' %}
+              <span class="dl-badge dl-badge-offline"><span class="dot"></span>Офлайн</span>
+            {% elif device.status == 'warning' %}
+              <span class="dl-badge dl-badge-warning"><span class="dot"></span>Предупреждение</span>
+            {% else %}
+              <span class="dl-badge dl-badge-unknown"><span class="dot"></span>Неизвестно</span>
+            {% endif %}
+          </td>
+
+          {# Device name + icon + location #}
+          <td>
+            <div class="dl-dev">
+              <div class="dl-dev-icon">
+                {% if device.device_type == 'mikrotik_router' %}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="13" width="20" height="7" rx="1.5"/><path d="M6 17h.01M10 17h.01M14 17h.01M18 17h.01"/><path d="M7 13V9a5 5 0 0 1 10 0v4M12 3v2"/></svg>
+                {% elif device.device_type == 'mikrotik_switch' %}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="1.5"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01"/></svg>
+                {% else %}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="18" height="7" rx="1.5"/><path d="M7 6.5h.01M7 17.5h.01"/></svg>
+                {% endif %}
+              </div>
+              <div>
+                <div class="dl-dev-title">{{ device.name }}</div>
+                {% if device.location %}<div class="dl-dev-loc">{{ device.location }}</div>{% endif %}
+              </div>
+            </div>
+          </td>
+
+          {# IP #}
+          <td class="dl-nowrap">
+            <span class="dl-ip">{{ device.ip_address }}</span>
+          </td>
+
+          {# Model + OS #}
+          <td>
+            <div class="dl-model">{{ device.model|default:"—" }}</div>
+            <div class="dl-model-sub">{{ device.os_version|default:"—"|truncatechars:32 }}</div>
+          </td>
+
+          {# CPU / RAM #}
+          <td>
+            {% if device.status == 'offline' %}
+              <span class="dl-dim">—</span>
+            {% elif metric %}
+              <div class="dl-metric">
+                <div class="dl-mbar">
+                  <div class="dl-mfill {% if metric.cpu_usage > 75 %}high{% elif metric.cpu_usage > 60 %}warn{% endif %}"
+                       style="width:{{ metric.cpu_usage|default:0 }}%"></div>
+                </div>
+                <span>{{ metric.cpu_usage|floatformat:0|default:"—" }}%</span>
+              </div>
+              <div class="dl-metric">
+                <div class="dl-mbar">
+                  <div class="dl-mfill {% if metric.memory_usage > 75 %}high{% elif metric.memory_usage > 60 %}warn{% endif %}"
+                       style="width:{{ metric.memory_usage|default:0 }}%"></div>
+                </div>
+                <span>{{ metric.memory_usage|floatformat:0|default:"—" }}%</span>
+              </div>
+            {% else %}
+              <span class="dl-dim">—</span>
+            {% endif %}
+          </td>
+
+          {# Uptime #}
+          <td class="dl-nowrap dl-uptime">{{ device.uptime|default:"—" }}</td>
+
+          {# Actions #}
+          <td onclick="event.stopPropagation()">
+            <div class="dl-acts">
+              <a href="{% url 'device-detail' device.pk %}" class="dl-act" title="Просмотр">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </a>
+              {% if is_operator %}
+              <a href="{% url 'device-edit' device.pk %}" class="dl-act" title="Редактировать">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </a>
+              <a href="{% url 'device-delete' device.pk %}" class="dl-act danger" title="Удалить">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr>
+          <td colspan="8">
+            <div class="dl-empty">
+              <div class="dl-empty-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              </div>
+              {% if selected_q or selected_status or selected_type %}
+                Устройства по заданным фильтрам не найдены
+              {% else %}
+                Устройства не добавлены
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Pagination #}
+  {% if is_paginated %}
+  <div class="dl-pager">
+    <div>
+      Страница <strong style="font-family:monospace">{{ page_obj.number }}</strong>
+      из <strong style="font-family:monospace">{{ page_obj.paginator.num_pages }}</strong>
+      · {{ page_obj.paginator.count }} результатов
+    </div>
+    <div class="dl-pnav">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}&status={{ selected_status }}&type={{ selected_type }}&q={{ selected_q }}" class="dl-pbtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      {% else %}
+      <span class="dl-pbtn disabled">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </span>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
         {% if page_obj.number == num %}
-        <span class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium">{{ num }}</span>
-        {% else %}
-        <a href="?page={{ num }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" class="px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium">
-            {{ num }}
-        </a>
+          <span class="dl-pbtn active">{{ num }}</span>
+        {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+          <a href="?page={{ num }}&status={{ selected_status }}&type={{ selected_type }}&q={{ selected_q }}" class="dl-pbtn">{{ num }}</a>
         {% endif %}
-    {% endfor %}
-    
-    {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" class="px-3 py-2 bg-white border border-slate-200 text-slate-500 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium">
-        Вперёд &raquo;
-    </a>
-    {% endif %}
-</nav>
-{% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}&status={{ selected_status }}&type={{ selected_type }}&q={{ selected_q }}" class="dl-pbtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+      {% else %}
+      <span class="dl-pbtn disabled">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </span>
+      {% endif %}
+    </div>
+    <div>Строк на странице: <strong style="font-family:monospace">{{ devices|length }}</strong></div>
+  </div>
+  {% endif %}
+
+</form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── filter helpers ─────────────────────────── */
+function setStatus(value) {
+  document.getElementById('flt-status').value = value;
+  document.getElementById('dl-form').submit();
+}
+function setType(value) {
+  document.getElementById('flt-type-h').value = value;
+  document.getElementById('dl-form').submit();
+}
+
+/* search debounce */
+let _st = null;
+document.getElementById('flt-q').addEventListener('input', function() {
+  clearTimeout(_st);
+  _st = setTimeout(function() { document.getElementById('dl-form').submit(); }, 380);
+});
+/* submit immediately on Enter */
+document.getElementById('flt-q').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { clearTimeout(_st); document.getElementById('dl-form').submit(); }
+});
+
+/* ── select all checkboxes ──────────────────── */
+function toggleAll(master) {
+  document.querySelectorAll('.row-chk').forEach(c => c.checked = master.checked);
+}
+
+/* ── refresh button ─────────────────────────── */
+function refreshDevices(btn) {
+  btn.disabled = true;
+  btn.style.opacity = '.6';
+  fetch("{% url 'check-all-devices' %}", {
+    method: 'POST',
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+  })
+  .then(r => r.json())
+  .then(d => { if (d.success) window.location.reload(); })
+  .catch(() => {})
+  .finally(() => { btn.disabled = false; btn.style.opacity = ''; });
+}
+</script>
 {% endblock %}

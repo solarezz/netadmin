@@ -6,3 +6,8 @@ register = template.Library()
 @register.inclusion_tag('devices/_status_badge.html')
 def device_status_badge(device):
     return {'device': device}
+
+
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)

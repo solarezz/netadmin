@@ -1,17 +1,16 @@
 {% extends 'base.html' %}
-{% block title %}Топология{% endblock %}
+{% block title %}Топология сети{% endblock %}
 
 {% block breadcrumbs %}
 <div class="flex items-center text-sm text-slate-500 mb-6">
-    <span>Home</span><i class="bi bi-chevron-right text-[10px] mx-2"></i>
-    <span>Network</span><i class="bi bi-chevron-right text-[10px] mx-2"></i>
-    <span class="text-slate-800 font-medium">Topology</span>
+    <span>Главная</span><i class="bi bi-chevron-right text-[10px] mx-2"></i>
+    <span>Сеть</span><i class="bi bi-chevron-right text-[10px] mx-2"></i>
+    <span class="text-slate-800 font-medium">Топология</span>
 </div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
-/* === TOPOLOGY — 1:1 with React prototype === */
 .topology-card {
   background: #fff;
   border: 1px solid oklch(0.92 0.006 250);
@@ -20,9 +19,7 @@
   overflow: hidden;
 }
 .topo-canvas {
-  height: 620px;
-  width: 100%;
-  position: relative;
+  height: 620px; width: 100%; position: relative;
   background:
     radial-gradient(circle at 1px 1px, oklch(0.88 0.01 250) 1px, transparent 0) 0 0 / 24px 24px,
     linear-gradient(180deg, oklch(0.99 0.003 250), oklch(0.97 0.005 250));
@@ -41,8 +38,7 @@
   display: flex; flex-direction: column; gap: 4px;
   background: #fff; border: 1px solid oklch(0.92 0.006 250);
   border-radius: 8px; padding: 4px;
-  box-shadow: 0 1px 2px rgba(15,23,42,.04);
-  z-index: 3;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04); z-index: 3;
 }
 .topo-controls button {
   width: 30px; height: 30px; border-radius: 5px;
@@ -57,87 +53,51 @@
   background: #fff; border: 1px solid oklch(0.92 0.006 250);
   border-radius: 8px; padding: 10px 14px;
   display: flex; gap: 14px; font-size: 12px;
-  box-shadow: 0 1px 2px rgba(15,23,42,.04);
-  z-index: 3; user-select: none;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04); z-index: 3; user-select: none;
 }
 .legend-item { display: flex; align-items: center; gap: 6px; color: oklch(0.45 0.02 265); }
-.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend-dot  { width: 10px; height: 10px; border-radius: 50%; }
 
-/* === NODES === */
+/* nodes */
 .topo-node {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  z-index: 2; cursor: pointer; user-select: none;
-  text-align: center;
+  position: absolute; transform: translate(-50%,-50%);
+  z-index: 2; cursor: pointer; user-select: none; text-align: center;
 }
 .node-circle {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: #fff;
+  width: 48px; height: 48px; border-radius: 50%; background: #fff;
   border: 2px solid oklch(0.88 0.008 250);
-  display: grid; place-items: center;
-  color: oklch(0.45 0.02 265);
-  transition: all 160ms;
+  display: grid; place-items: center; color: oklch(0.45 0.02 265);
+  transition: all 160ms; position: relative; margin: 0 auto;
   box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 1px 1px rgba(15,23,42,.03);
-  position: relative;
-  margin: 0 auto;
 }
-.node-circle.online { border-color: oklch(0.62 0.15 155); background:#fff; color: oklch(0.42 0.13 155); }
+.node-circle.online  { border-color: oklch(0.62 0.15 155); color: oklch(0.42 0.13 155); }
 .node-circle.online::after {
   content:''; position:absolute; inset:-5px; border-radius:50%;
   border: 2px solid oklch(0.62 0.15 155 / 0.25);
   animation: ringpulse 2.4s infinite;
 }
-@keyframes ringpulse {
-  0%   { transform:scale(0.9); opacity:1; }
-  100% { transform:scale(1.5); opacity:0; }
-}
+@keyframes ringpulse { 0%{transform:scale(0.9);opacity:1} 100%{transform:scale(1.5);opacity:0} }
 .node-circle.offline { border-color: oklch(0.58 0.20 20); background: oklch(0.95 0.035 20); color: oklch(0.58 0.20 20); }
-.node-circle.warn    { border-color: oklch(0.72 0.15 75); background:#fff; color: oklch(0.45 0.12 60); }
+.node-circle.warn    { border-color: oklch(0.72 0.15 75); color: oklch(0.45 0.12 60); }
 .node-circle.unknown { border-color: oklch(0.88 0.008 250); }
-.node-circle.core {
-  background: oklch(0.22 0.04 265);
-  border-color: oklch(0.22 0.04 265);
-  color: #fff;
-  width: 58px; height: 58px;
-}
-.topo-node:hover .node-circle {
-  transform: scale(1.08);
-  box-shadow: 0 4px 14px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
-}
-.node-label {
-  margin-top: 6px;
-  font-size: 11.5px; font-weight: 600;
-  color: oklch(0.22 0.02 265); white-space: nowrap;
-}
-.node-ip {
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 10.5px; color: oklch(0.62 0.015 265);
-  text-align: center;
-}
+.node-circle.core    { background: oklch(0.22 0.04 265); border-color: oklch(0.22 0.04 265); color: #fff; width: 58px; height: 58px; }
+.topo-node:hover .node-circle { transform: scale(1.08); box-shadow: 0 4px 14px rgba(15,23,42,.06); }
+.node-label { margin-top: 6px; font-size: 11.5px; font-weight: 600; color: oklch(0.22 0.02 265); white-space: nowrap; }
+.node-ip    { font-family: 'JetBrains Mono','Courier New',monospace; font-size: 10.5px; color: oklch(0.62 0.015 265); }
 
-/* === HOVER CARD === */
+/* hover card */
 #hover-card {
-  position: absolute;
-  background: #fff;
-  border: 1px solid oklch(0.92 0.006 250);
-  border-radius: 10px;
-  padding: 10px 14px;
+  position: absolute; background: #fff;
+  border: 1px solid oklch(0.92 0.006 250); border-radius: 10px;
+  padding: 10px 14px; min-width: 220px;
   box-shadow: 0 24px 48px -16px rgba(15,23,42,.18), 0 2px 4px rgba(15,23,42,.05);
-  z-index: 10;
-  min-width: 220px;
-  pointer-events: none;
-  font-size: 12px;
-  display: none;
+  z-index: 10; pointer-events: none; font-size: 12px; display: none;
 }
-.hc-title { font-size: 13px; font-weight: 600; color: oklch(0.22 0.02 265); }
-.hc-model { color: oklch(0.45 0.02 265); margin-top: 2px; }
-.hc-ip { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: oklch(0.62 0.015 265); margin-top: 2px; }
+.hc-title   { font-size: 13px; font-weight: 600; color: oklch(0.22 0.02 265); }
+.hc-model   { color: oklch(0.45 0.02 265); margin-top: 2px; }
+.hc-ip      { font-family: 'JetBrains Mono',monospace; font-size: 11px; color: oklch(0.62 0.015 265); margin-top: 2px; }
 .hc-metrics { display: flex; gap: 10px; margin-top: 8px; font-size: 11.5px; }
-.hc-badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11.5px; font-weight: 600;
-  padding: 2px 8px; border-radius: 100px;
-}
+.hc-badge   { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 100px; }
 .hc-badge.online  { background: oklch(0.95 0.04 155); color: oklch(0.42 0.13 155); }
 .hc-badge.offline { background: oklch(0.95 0.035 20); color: oklch(0.42 0.17 20); }
 .hc-badge.warn    { background: oklch(0.96 0.05 75);  color: oklch(0.45 0.12 60); }
@@ -145,31 +105,34 @@
 .hc-badge.online  .dot { background: oklch(0.62 0.15 155); }
 .hc-badge.offline .dot { background: oklch(0.58 0.20 20); }
 .hc-badge.warn    .dot { background: oklch(0.72 0.15 75); }
+
+/* mode buttons */
+.mode-btn { color: oklch(0.45 0.02 265); background: #fff; cursor: pointer; transition: background 120ms, color 120ms; }
+.mode-btn:hover { background: oklch(0.97 0.005 250); }
+.mode-btn.active { background: oklch(0.22 0.02 265) !important; color: #fff !important; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="mb-4 flex flex-wrap justify-between items-end gap-4">
   <div>
-    <h1 class="text-3xl font-bold text-slate-900 mb-1">Network Topology</h1>
-    <p class="text-slate-500 text-sm">Live interactive graph of all network links · Auto-discovered via CDP/LLDP</p>
+    <h1 class="text-3xl font-bold text-slate-900 mb-1">Топология сети</h1>
+    <p class="text-slate-500 text-sm">Интерактивный граф всех сетевых связей · Автообнаружение через CDP/LLDP</p>
   </div>
   <div class="flex gap-3">
     <div class="flex rounded-lg border border-slate-200 overflow-hidden text-sm font-medium shadow-sm">
-      <button class="px-4 py-2 bg-slate-900 text-white">Physical</button>
-      <button class="px-4 py-2 bg-white text-slate-600 hover:bg-slate-50 border-l border-slate-200">Logical</button>
-      <button class="px-4 py-2 bg-white text-slate-600 hover:bg-slate-50 border-l border-slate-200">Subnet</button>
+      <button class="mode-btn px-4 py-2" data-mode="physical" onclick="setMode('physical')">Физическая</button>
+      <button class="mode-btn px-4 py-2 border-l border-slate-200" data-mode="logical" onclick="setMode('logical')">Логическая</button>
+      <button class="mode-btn px-4 py-2 border-l border-slate-200" data-mode="subnet" onclick="setMode('subnet')">По подсетям</button>
     </div>
     <button onclick="exportSVG()" class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm shadow-sm hover:bg-slate-50">
-      <i class="bi bi-download"></i> Export SVG
+      <i class="bi bi-download"></i> Экспорт SVG
     </button>
   </div>
 </div>
 
 <div class="topology-card">
   <div class="topo-canvas" id="topo-canvas">
-
-    <!-- SVG layer for edges -->
     <svg id="edge-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="flowDash" patternUnits="userSpaceOnUse" width="8" height="2">
@@ -178,9 +141,6 @@
       </defs>
     </svg>
 
-    <!-- Nodes are injected here by JS -->
-
-    <!-- Hover card -->
     <div id="hover-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <span class="hc-title" id="hc-name">—</span>
@@ -189,39 +149,36 @@
       <div class="hc-model" id="hc-model"></div>
       <div class="hc-ip"    id="hc-ip"></div>
       <div class="hc-metrics" id="hc-metrics" style="display:none;">
-        <div>CPU <strong id="hc-cpu" style="font-family:monospace;">—</strong></div>
-        <div>RAM <strong id="hc-ram" style="font-family:monospace;">—</strong></div>
-        <div>Up <strong id="hc-uptime" style="font-family:monospace;">—</strong></div>
+        <div>ЦП <strong id="hc-cpu" style="font-family:monospace;">—</strong></div>
+        <div>ОЗУ <strong id="hc-ram" style="font-family:monospace;">—</strong></div>
+        <div>Аптайм <strong id="hc-uptime" style="font-family:monospace;">—</strong></div>
       </div>
     </div>
 
-    <!-- Info pill -->
     <div class="topo-info">
       <strong id="cnt-nodes">—</strong> · <span id="cnt-edges">—</span>
-      <span style="margin-left:10px;color:oklch(0.62 0.015 265);">Last scan: <span id="last-scan">—</span></span>
+      <span style="margin-left:10px;color:oklch(0.62 0.015 265);">Сканирование: <span id="last-scan">—</span></span>
     </div>
 
-    <!-- Controls -->
     <div class="topo-controls">
-      <button onclick="pan( 0.1)" title="Zoom in">
+      <button onclick="pan(0.1)" title="Увеличить">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M11 8v6M8 11h6"/></svg>
       </button>
-      <button onclick="pan(-0.1)" title="Zoom out">
+      <button onclick="pan(-0.1)" title="Уменьшить">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M8 11h6"/></svg>
       </button>
-      <button onclick="loadTopo(true)" title="Fit / Refresh">
+      <button onclick="fitView()" title="По размеру">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
       </button>
-      <button onclick="loadTopo(true)" title="Refresh" id="ri-btn">
+      <button onclick="loadTopo(true)" title="Обновить" id="ri-btn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" id="ri"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.65 4.36A9 9 0 0 0 20.5 15"/></svg>
       </button>
     </div>
 
-    <!-- Legend -->
     <div class="topo-legend">
-      <div class="legend-item"><span class="legend-dot" style="background:oklch(0.62 0.15 155)"></span> Online (<span id="leg-on">0</span>)</div>
-      <div class="legend-item"><span class="legend-dot" style="background:oklch(0.72 0.15 75)"></span> Warning (<span id="leg-wa">0</span>)</div>
-      <div class="legend-item"><span class="legend-dot" style="background:oklch(0.58 0.20 20)"></span> Offline (<span id="leg-off">0</span>)</div>
+      <div class="legend-item"><span class="legend-dot" style="background:oklch(0.62 0.15 155)"></span> Онлайн (<span id="leg-on">0</span>)</div>
+      <div class="legend-item"><span class="legend-dot" style="background:oklch(0.72 0.15 75)"></span> Предупреждение (<span id="leg-wa">0</span>)</div>
+      <div class="legend-item"><span class="legend-dot" style="background:oklch(0.58 0.20 20)"></span> Офлайн (<span id="leg-off">0</span>)</div>
     </div>
   </div>
 </div>
@@ -231,12 +188,13 @@
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
 const TOPO_URL = "{% url 'api-topology' %}";
-let scanAt = null;
-let simulation = null;
+let scanAt       = null;
+let simulation   = null;
 let currentNodes = [];
 let isDraggingNode = false;
+let currentMode  = 'physical';
+let lastData     = null;
 
-/* === ICON SVG paths (exact from prototype's icons.jsx) === */
 const ICONS = {
   mikrotik_router: `<rect x="2" y="13" width="20" height="7" rx="1.5"/><path d="M6 17h.01M10 17h.01M14 17h.01M18 17h.01"/><path d="M7 13V9a5 5 0 0 1 10 0v4M12 3v2"/>`,
   mikrotik_switch: `<rect x="2" y="7" width="20" height="10" rx="1.5"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01"/>`,
@@ -248,278 +206,353 @@ function iconSVG(type, size) {
   const p = ICONS[type] || ICONS.linux;
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 }
-
-/* === EDGE COLOUR === */
-function edgeColor(srcStatus, tgtStatus) {
-  if (srcStatus === 'offline' || tgtStatus === 'offline') return 'oklch(0.58 0.20 20)';
-  if (srcStatus === 'warning' || tgtStatus === 'warning') return 'oklch(0.72 0.15 75)';
+function edgeColor(s, t) {
+  if (s==='offline'||t==='offline') return 'oklch(0.58 0.20 20)';
+  if (s==='warning'||t==='warning') return 'oklch(0.72 0.15 75)';
   return 'oklch(0.78 0.02 260)';
 }
+function getSubnetPrefix(ip) {
+  if (!ip) return '—';
+  const p = ip.split('.');
+  return p.length >= 3 ? p.slice(0,3).join('.') : ip;
+}
+function getTier(dt) {
+  if (dt && dt.includes('router')) return 0;
+  if (dt && dt.includes('switch')) return 1;
+  return 2;
+}
+const STATUS_RU = { online:'Онлайн', offline:'Офлайн', warning:'Предупреждение' };
 
-/* === RENDER === */
+const SUBNET_PALETTE = [
+  { bg:'rgba(59,130,246,0.07)',  border:'rgba(59,130,246,0.4)',  text:'rgba(29,78,216,0.75)'   },
+  { bg:'rgba(16,185,129,0.07)',  border:'rgba(16,185,129,0.4)',  text:'rgba(4,120,87,0.75)'    },
+  { bg:'rgba(245,158,11,0.07)',  border:'rgba(245,158,11,0.4)',  text:'rgba(180,83,9,0.75)'    },
+  { bg:'rgba(139,92,246,0.07)',  border:'rgba(139,92,246,0.4)',  text:'rgba(109,40,217,0.75)'  },
+  { bg:'rgba(239,68,68,0.07)',   border:'rgba(239,68,68,0.4)',   text:'rgba(185,28,28,0.75)'   },
+];
+
+/* ── mode switch ─────────────────────────────────── */
+function setMode(mode) {
+  if (mode === currentMode) return;
+  currentMode = mode;
+  currentNodes = [];   // drop old positions so new layout starts fresh
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode));
+  if (lastData) render(lastData);
+}
+
+/* ── bbox helper ─────────────────────────────────── */
+function computeBBox(nodes, pad) {
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  nodes.forEach(n => { x0=Math.min(x0,n.x); y0=Math.min(y0,n.y); x1=Math.max(x1,n.x); y1=Math.max(y1,n.y); });
+  return { x:x0-pad, y:y0-pad, w:Math.max(x1-x0+2*pad, 110), h:Math.max(y1-y0+2*pad, 110) };
+}
+function applyBBox(el, b) {
+  el.setAttribute('x',b.x); el.setAttribute('y',b.y);
+  el.setAttribute('width',b.w); el.setAttribute('height',b.h);
+}
+
+/* ── main render ─────────────────────────────────── */
 function render(data) {
+  lastData = data;
+  const mode   = currentMode;
   const canvas = document.getElementById('topo-canvas');
-  const W = canvas.clientWidth || 800, H = canvas.clientHeight || 600;
+  const W = canvas.clientWidth || 800, H = canvas.clientHeight || 620;
 
   /* counters */
-  document.getElementById('cnt-nodes').textContent = `${data.nodes.length} nodes`;
-  document.getElementById('cnt-edges').textContent = `${data.edges.length} links`;
+  document.getElementById('cnt-nodes').textContent = `${data.nodes.length} узлов`;
+  document.getElementById('cnt-edges').textContent = `${data.edges.length} связей`;
   document.getElementById('leg-on').textContent  = data.nodes.filter(n=>n.status==='online').length;
   document.getElementById('leg-wa').textContent  = data.nodes.filter(n=>n.status==='warning').length;
   document.getElementById('leg-off').textContent = data.nodes.filter(n=>n.status==='offline').length;
 
-  // Preserve previous positions across renders for stability
-  const oldMap = new Map(currentNodes.map(n => [n.id, n]));
-  // Calculate connections (degree) to find the core hub
+  const oldMap = new Map(currentNodes.map(n=>[n.id,n]));
+
+  /* degree */
   const degree = {};
   data.nodes.forEach(n => degree[n.id] = 0);
   data.edges.forEach(e => { if(e.from) degree[e.from]++; if(e.to) degree[e.to]++; });
   const maxDegree = Math.max(1, ...Object.values(degree));
-
   const COUNT = data.nodes.length;
-  const nodes = data.nodes.map((n, i) => {
-    n.degree = degree[n.id] || 0;
-    const old = oldMap.get(n.id);
-    if (old) {
-      return { ...n, x: old.x, y: old.y, vx: old.vx, vy: old.vy, fx: old.fx, fy: old.fy };
-    }
-    // Most connected node starts slightly off-center (avoids D3's random jiggle
-    // which only triggers when two nodes share the exact same starting coordinate).
-    if (n.degree === maxDegree && maxDegree > 2) {
-       return { ...n, x: W/2 + 1, y: H/2 };
-    }
-    // Others start on a wide circle
-    const angle = (2 * Math.PI * i) / COUNT;
-    const r = Math.min(W, H) * 0.35; // wider circle
-    return { ...n, x: W/2 + r * Math.cos(angle), y: H/2 + r * Math.sin(angle) };
-  });
-  currentNodes = nodes;
 
-  const nodeMap = Object.fromEntries(nodes.map(n=>[n.id, n]));
-  const links = data.edges.map(e => ({...e, source: nodeMap[e.from], target: nodeMap[e.to]})).filter(l=>l.source&&l.target);
+  /* subnet helpers (used even in physical to not error) */
+  const subnetOrder = [...new Set(data.nodes.map(n=>getSubnetPrefix(n.ip)))].sort();
+  const subnetColorMap = {};
+  subnetOrder.forEach((s,i) => { subnetColorMap[s] = SUBNET_PALETTE[i % SUBNET_PALETTE.length]; });
+  const subCols = Math.max(1, Math.ceil(Math.sqrt(subnetOrder.length)));
+  const subRows = Math.max(1, Math.ceil(subnetOrder.length / subCols));
+  function subCenter(ip) {
+    const idx = subnetOrder.indexOf(getSubnetPrefix(ip));
+    const col = idx % subCols, row = Math.floor(idx/subCols);
+    return { x: W*(0.15 + 0.7*(col+0.5)/subCols), y: H*(0.15 + 0.7*(row+0.5)/subRows) };
+  }
 
-  // Адаптивные силы
+  /* adaptive physics */
   const repulsion = COUNT <= 4 ? -450 : COUNT <= 8 ? -700 : -900;
   const linkDist  = COUNT <= 4 ? 180  : COUNT <= 8 ? 220  : 260;
 
+  /* initial positions */
+  const nodes = data.nodes.map((n, i) => {
+    n.degree = degree[n.id] || 0;
+    const old = oldMap.get(n.id);
+    if (old) return { ...n, x:old.x, y:old.y, vx:old.vx||0, vy:old.vy||0, fx:null, fy:null };
+
+    if (mode === 'logical') {
+      const tier = getTier(n.device_type);
+      const ty   = [H*0.22, H*0.5, H*0.78][tier];
+      return { ...n, x: W/2 + (Math.random()-0.5)*W*0.5, y: ty };
+    }
+    if (mode === 'subnet') {
+      const c = subCenter(n.ip);
+      return { ...n, x: c.x + (Math.random()-0.5)*70, y: c.y + (Math.random()-0.5)*70 };
+    }
+    /* physical */
+    if (n.degree === maxDegree && maxDegree > 2) return { ...n, x: W/2+1, y: H/2 };
+    const angle = (2*Math.PI*i)/COUNT, r = Math.min(W,H)*0.35;
+    return { ...n, x: W/2+r*Math.cos(angle), y: H/2+r*Math.sin(angle) };
+  });
+  currentNodes = nodes;
+
+  const nodeMap = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const links   = data.edges.map(e=>({...e, source:nodeMap[e.from], target:nodeMap[e.to]})).filter(l=>l.source&&l.target);
+
   if (simulation) simulation.stop();
 
-  /* D3 force simulation */
-  simulation = d3.forceSimulation(nodes)
+  let sim = d3.forceSimulation(nodes)
     .force('link',    d3.forceLink(links).id(d=>d.id).distance(linkDist).strength(0.8))
     .force('charge',  d3.forceManyBody().strength(repulsion))
-    .force('center',  d3.forceCenter(W/2, H/2).strength(0.4))
-    .force('collide', d3.forceCollide(85)) // Чуть больше чтобы не слеплялись
-    // Небольшая сила стягивающая к центру самые нагруженные узлы (ядра)
-    .force('x', d3.forceX(W/2).strength(d => d.degree === maxDegree ? 0.08 : 0))
-    .force('y', d3.forceY(H/2).strength(d => d.degree === maxDegree ? 0.08 : 0))
-    .alphaDecay(0.02)
-    .stop();
+    .force('collide', d3.forceCollide(85))
+    .alphaDecay(0.02);
 
-  // On first load run 300 ticks so the graph appears settled immediately.
-  // On auto-refresh old positions are already stable, so 30 ticks is enough
-  // to absorb any minor topology change without drifting the layout.
+  if (mode === 'logical') {
+    const TIER_Y = [H*0.22, H*0.5, H*0.78];
+    sim.force('tierY',   d3.forceY(d => TIER_Y[getTier(d.device_type)]).strength(0.55));
+    sim.force('centerX', d3.forceX(W/2).strength(0.06));
+  } else if (mode === 'subnet') {
+    sim.force('clusterX', d3.forceX(d => subCenter(d.ip).x).strength(0.35));
+    sim.force('clusterY', d3.forceY(d => subCenter(d.ip).y).strength(0.35));
+  } else {
+    sim.force('center', d3.forceCenter(W/2, H/2).strength(0.4))
+       .force('x', d3.forceX(W/2).strength(d => d.degree===maxDegree ? 0.08 : 0))
+       .force('y', d3.forceY(H/2).strength(d => d.degree===maxDegree ? 0.08 : 0));
+  }
+
+  simulation = sim.stop();
   const tickCount = oldMap.size > 0 ? 30 : 300;
-  for(let i=0; i<tickCount; i++) simulation.tick();
+  for (let i=0; i<tickCount; i++) simulation.tick();
 
-  // Запускаем асинхронный тик для работы Drag and Drop
-  simulation.on('tick', ticked);
-
-  // Жестко ограничиваем координаты краями
   const PAD = 60;
-  nodes.forEach(n => {
-    n.x = Math.max(PAD, Math.min(W-PAD, n.x));
-    n.y = Math.max(PAD, Math.min(H-PAD, n.y));
-  });
+  nodes.forEach(n => { n.x=Math.max(PAD,Math.min(W-PAD,n.x)); n.y=Math.max(PAD,Math.min(H-PAD,n.y)); });
 
-  /* Remove old nodes */
-  canvas.querySelectorAll('.topo-node').forEach(el=>el.remove());
-
-  /* SVG edges */
+  /* ── SVG layer ── */
   const svg = document.getElementById('edge-svg');
-  Array.from(svg.children).forEach(ch=>{ if(ch.tagName!=='defs') ch.remove(); });
+  Array.from(svg.children).forEach(ch => { if(ch.tagName!=='defs') ch.remove(); });
 
+  /* logical: tier bands */
+  if (mode === 'logical') {
+    const TIER_Y  = [H*0.22, H*0.5, H*0.78];
+    const LABELS  = ['МАРШРУТИЗАТОРЫ', 'КОММУТАТОРЫ', 'СЕРВЕРЫ'];
+    const COLORS  = ['rgba(99,102,241,0.05)', 'rgba(16,185,129,0.05)', 'rgba(245,158,11,0.05)'];
+    const bandH   = H * 0.28;
+    TIER_Y.forEach((ty, i) => {
+      const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x',0); r.setAttribute('y', ty - bandH/2);
+      r.setAttribute('width',W); r.setAttribute('height',bandH);
+      r.setAttribute('fill', COLORS[i]);
+      svg.appendChild(r);
+
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',10); t.setAttribute('y', ty - bandH/2 + 14);
+      t.setAttribute('font-size','9'); t.setAttribute('font-weight','700');
+      t.setAttribute('letter-spacing','0.1em');
+      t.setAttribute('fill','oklch(0.45 0.015 265)'); t.setAttribute('opacity','0.5');
+      t.textContent = LABELS[i];
+      svg.appendChild(t);
+    });
+  }
+
+  /* subnet: group rectangles */
+  const subnetEls = {};
+  if (mode === 'subnet') {
+    const groups = {};
+    nodes.forEach(n => { const k=getSubnetPrefix(n.ip); if(!groups[k]) groups[k]=[]; groups[k].push(n); });
+
+    Object.entries(groups).forEach(([prefix, gnodes]) => {
+      const color = subnetColorMap[prefix]; if(!color) return;
+      const b = computeBBox(gnodes, 52);
+
+      const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      applyBBox(rect, b);
+      rect.setAttribute('rx','16'); rect.setAttribute('fill',color.bg);
+      rect.setAttribute('stroke',color.border); rect.setAttribute('stroke-width','1.5');
+      rect.setAttribute('stroke-dasharray','6 3');
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+      text.setAttribute('x', b.x+10); text.setAttribute('y', b.y+15);
+      text.setAttribute('font-size','10'); text.setAttribute('font-weight','600');
+      text.setAttribute('font-family','JetBrains Mono,monospace');
+      text.setAttribute('fill', color.text);
+      text.textContent = prefix + '.0/24';
+
+      svg.insertBefore(text, svg.firstChild);
+      svg.insertBefore(rect, svg.firstChild);
+      subnetEls[prefix] = { rect, text, nodes: gnodes };
+    });
+  }
+
+  /* edges */
   links.forEach((l, i) => {
     const broken = l.source.status==='offline' || l.target.status==='offline';
-    const warn   = l.source.status==='warning' || l.target.status==='warning';
+    const warn   = l.source.status==='warning'  || l.target.status==='warning';
     const stroke = edgeColor(l.source.status, l.target.status);
 
-    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const g    = document.createElementNS('http://www.w3.org/2000/svg','g');
     const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1', l.source.x);
-    line.setAttribute('y1', l.source.y);
-    line.setAttribute('x2', l.target.x);
-    line.setAttribute('y2', l.target.y);
-    line.setAttribute('stroke', stroke);
-    line.setAttribute('stroke-width', broken ? 1.5 : 2);
-    if(broken) line.setAttribute('stroke-dasharray','5 4');
-    line.setAttribute('opacity', broken ? 0.6 : 0.7);
+    line.setAttribute('x1',l.source.x); line.setAttribute('y1',l.source.y);
+    line.setAttribute('x2',l.target.x); line.setAttribute('y2',l.target.y);
+    line.setAttribute('stroke',stroke); line.setAttribute('stroke-width', broken?1.5:2);
+    if (broken) line.setAttribute('stroke-dasharray','5 4');
+    line.setAttribute('opacity', broken?0.6:0.7);
     line.setAttribute('stroke-linecap','round');
     g.appendChild(line);
 
-    let am = null;
-    let dot = null;
-    if(!broken && !warn) {
+    let am=null, dot=null;
+    if (!broken && !warn) {
       dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      dot.setAttribute('r','2.5');
-      dot.setAttribute('fill','oklch(0.55 0.17 265)');
+      dot.setAttribute('r','2.5'); dot.setAttribute('fill','oklch(0.55 0.17 265)');
       am = document.createElementNS('http://www.w3.org/2000/svg','animateMotion');
-      am.setAttribute('dur', `${3+(i%3)}s`);
-      am.setAttribute('repeatCount','indefinite');
-      if (l.source.x !== l.target.x || l.source.y !== l.target.y) {
-          am.setAttribute('path', `M${l.source.x},${l.source.y} L${l.target.x},${l.target.y}`);
-      }
-      dot.appendChild(am);
-      g.appendChild(dot);
+      am.setAttribute('dur',`${3+(i%3)}s`); am.setAttribute('repeatCount','indefinite');
+      if (l.source.x!==l.target.x || l.source.y!==l.target.y)
+        am.setAttribute('path',`M${l.source.x},${l.source.y} L${l.target.x},${l.target.y}`);
+      dot.appendChild(am); g.appendChild(dot);
     }
-
     svg.appendChild(g);
-    l.line = line;
-    l.dot = dot;
-    l.am = am;
+    l.line=line; l.dot=dot; l.am=am;
   });
 
-  /* HTML nodes */
+  /* nodes */
+  canvas.querySelectorAll('.topo-node').forEach(el=>el.remove());
   nodes.forEach(n => {
     const isCore = n.is_core;
-    const sz     = isCore ? 26 : 20;
-    const cls    = `node-circle ${n.status==='warning'?'warn':n.status||'unknown'}${isCore?' core':''}`;
-
+    const sz  = isCore ? 26 : 20;
+    const cls = `node-circle ${n.status==='warning'?'warn':n.status||'unknown'}${isCore?' core':''}`;
     const div = document.createElement('div');
     div.className = 'topo-node';
-    div.style.left = n.x + 'px';
-    div.style.top  = n.y + 'px';
-    div.innerHTML = `
-      <div class="${cls}">${iconSVG(n.device_type, sz)}</div>
+    div.style.left = n.x+'px'; div.style.top = n.y+'px';
+    div.innerHTML = `<div class="${cls}">${iconSVG(n.device_type,sz)}</div>
       <div class="node-label">${n.label}</div>
       <div class="node-ip">${n.ip||''}</div>`;
 
     const drag = d3.drag()
-      .on("start", (ev) => {
-        if (!ev.active) simulation.alphaTarget(0.3).restart();
-        n.fx = n.x; n.fy = n.y;
-        isDraggingNode = true;
-      })
-      .on("drag", (ev) => {
-        n.fx = ev.x; n.fy = ev.y;
-      })
-      .on("end", (ev) => {
-        if (!ev.active) simulation.alphaTarget(0);
-        n.fx = null; n.fy = null;
-        setTimeout(() => isDraggingNode = false, 50);
-      });
+      .on('start', ev => { if(!ev.active) simulation.alphaTarget(0.3).restart(); n.fx=n.x; n.fy=n.y; isDraggingNode=true; })
+      .on('drag',  ev => { n.fx=ev.x; n.fy=ev.y; })
+      .on('end',   ev => { if(!ev.active) simulation.alphaTarget(0); n.fx=null; n.fy=null; setTimeout(()=>isDraggingNode=false,50); });
     d3.select(div).call(drag);
 
-    div.addEventListener('click',  () => { if(n.url && !isDraggingNode) location.href=n.url; });
-    div.addEventListener('mouseenter', (e) => { if (!isDraggingNode) showCard(e, n); });
-    div.addEventListener('mouseleave', () => hideCard());
-    
+    div.addEventListener('click',      () => { if(n.url && !isDraggingNode) location.href=n.url; });
+    div.addEventListener('mouseenter', e  => { if(!isDraggingNode) showCard(e,n); });
+    div.addEventListener('mouseleave', hideCard);
     canvas.appendChild(div);
     n.el = div;
   });
 
+  /* tick */
   function ticked() {
     nodes.forEach(n => {
       n.x = Math.max(PAD, Math.min(W-PAD, n.x));
       n.y = Math.max(PAD, Math.min(H-PAD, n.y));
-      if(n.el) {
-        n.el.style.left = n.x + 'px';
-        n.el.style.top  = n.y + 'px';
-      }
+      if (n.el) { n.el.style.left=n.x+'px'; n.el.style.top=n.y+'px'; }
     });
-    
     links.forEach(l => {
-      if(l.line) {
-        l.line.setAttribute('x1', l.source.x);
-        l.line.setAttribute('y1', l.source.y);
-        l.line.setAttribute('x2', l.target.x);
-        l.line.setAttribute('y2', l.target.y);
+      if (l.line) {
+        l.line.setAttribute('x1',l.source.x); l.line.setAttribute('y1',l.source.y);
+        l.line.setAttribute('x2',l.target.x); l.line.setAttribute('y2',l.target.y);
       }
-      if(l.am && l.dot && (l.source.x !== l.target.x || l.source.y !== l.target.y)) {
-        const newP = `M${l.source.x},${l.source.y} L${l.target.x},${l.target.y}`;
-        if (l.am.getAttribute('path') !== newP) {
-           const newAm = l.am.cloneNode();
-           newAm.setAttribute('path', newP);
-           l.dot.replaceChild(newAm, l.am);
-           l.am = newAm;
+      if (l.am && l.dot && (l.source.x!==l.target.x||l.source.y!==l.target.y)) {
+        const p=`M${l.source.x},${l.source.y} L${l.target.x},${l.target.y}`;
+        if (l.am.getAttribute('path')!==p) {
+          const na=l.am.cloneNode(); na.setAttribute('path',p);
+          l.dot.replaceChild(na, l.am); l.am=na;
         }
       }
     });
+    if (mode === 'subnet') {
+      Object.values(subnetEls).forEach(els => {
+        const b = computeBBox(els.nodes, 52);
+        applyBBox(els.rect, b);
+        els.text.setAttribute('x', b.x+10); els.text.setAttribute('y', b.y+15);
+      });
+    }
   }
-
+  simulation.on('tick', ticked);
   scanAt = Date.now();
 }
 
-/* === HOVER CARD === */
+/* ── hover card ──────────────────────────────────── */
 function showCard(e, n) {
   const card = document.getElementById('hover-card');
-  document.getElementById('hc-name').textContent   = n.label;
-  document.getElementById('hc-model').textContent  = n.model || n.device_type;
-  document.getElementById('hc-ip').textContent     = n.ip || '';
+  document.getElementById('hc-name').textContent  = n.label;
+  document.getElementById('hc-model').textContent = n.model || n.device_type;
+  document.getElementById('hc-ip').textContent    = n.ip || '';
 
   const badge = document.getElementById('hc-badge');
-  badge.className = 'hc-badge ' + (n.status==='warning'?'warn':n.status||'unknown');
-  document.getElementById('hc-status-text').textContent =
-    n.status==='online' ? 'Online' : n.status==='offline' ? 'Offline' : n.status==='warning' ? 'Warning' : n.status;
+  badge.className = 'hc-badge '+(n.status==='warning'?'warn':n.status||'unknown');
+  document.getElementById('hc-status-text').textContent = STATUS_RU[n.status] || n.status;
 
   const metrics = document.getElementById('hc-metrics');
-  if(n.cpu != null || n.uptime) {
+  if (n.cpu!=null || n.uptime) {
     metrics.style.display='flex';
     document.getElementById('hc-cpu').textContent    = n.cpu  != null ? n.cpu+'%'  : '—';
     document.getElementById('hc-ram').textContent    = n.ram  != null ? n.ram+'%'  : '—';
     document.getElementById('hc-uptime').textContent = n.uptime || '—';
-  } else {
-    metrics.style.display='none';
-  }
+  } else { metrics.style.display='none'; }
 
-  const canvas = document.getElementById('topo-canvas');
-  const cr = canvas.getBoundingClientRect();
+  const cr = document.getElementById('topo-canvas').getBoundingClientRect();
   const nx = parseFloat(e.currentTarget.style.left);
   const ny = parseFloat(e.currentTarget.style.top);
-  card.style.display = 'block';
-  /* Position right of node, flip left if near edge */
-  const cardW = 230;
-  let lx = nx + 34, ly = ny - 40;
-  if(lx + cardW > cr.width - 10) lx = nx - cardW - 34;
-  card.style.left = lx+'px';
-  card.style.top  = Math.max(10, ly)+'px';
+  card.style.display='block';
+  const cardW=230;
+  let lx=nx+34, ly=ny-40;
+  if (lx+cardW > cr.width-10) lx=nx-cardW-34;
+  card.style.left=lx+'px'; card.style.top=Math.max(10,ly)+'px';
 }
 function hideCard() { document.getElementById('hover-card').style.display='none'; }
 
-/* === LOAD === */
-function loadTopo(full=true) {
+/* ── load / utils ────────────────────────────────── */
+function loadTopo() {
   const ri = document.getElementById('ri');
   ri.style.animation='spin 0.8s linear infinite';
-  fetch(TOPO_URL).then(r=>r.json())
-    .then(d=>render(d))
-    .catch(console.error)
-    .finally(()=>{ ri.style.animation=''; });
+  fetch(TOPO_URL).then(r=>r.json()).then(d=>render(d))
+    .catch(console.error).finally(()=>{ ri.style.animation=''; });
 }
-function pan(_f) { /* placeholder – canvas uses absolute px positions, could implement scale later */ }
+function fitView()  { currentNodes=[]; if(lastData) render(lastData); }
+function pan(_f)    { /* zoom placeholder */ }
 function exportSVG() {
   const svg = document.getElementById('edge-svg');
-  const s = new XMLSerializer().serializeToString(svg);
   const a = document.createElement('a');
-  a.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);
+  a.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
   a.download='topology.svg'; a.click();
 }
 
-/* Last-scan counter */
+/* last-scan label */
 setInterval(()=>{
-  if(!scanAt) return;
-  const s=Math.floor((Date.now()-scanAt)/1000);
-  document.getElementById('last-scan').textContent = s<5?'just now':s+' sec ago';
-},1000);
+  if (!scanAt) return;
+  const s = Math.floor((Date.now()-scanAt)/1000);
+  document.getElementById('last-scan').textContent = s<5 ? 'только что' : s+' сек. назад';
+}, 1000);
 
-/* Auto-refresh every 30 s */
+/* auto-refresh 30 s */
 let cd=30;
-setInterval(()=>{ if(--cd<=0){cd=30;loadTopo(true);} },1000);
+setInterval(()=>{ if(--cd<=0){ cd=30; loadTopo(); } }, 1000);
 
-/* Spin keyframe */
-const st=document.createElement('style');
-st.textContent='@keyframes spin{to{transform:rotate(360deg)}}';
-document.head.appendChild(st);
+/* spin keyframe */
+const _st=document.createElement('style');
+_st.textContent='@keyframes spin{to{transform:rotate(360deg)}}';
+document.head.appendChild(_st);
 
-loadTopo(true);
+/* init */
+document.querySelectorAll('.mode-btn').forEach(b =>
+  b.classList.toggle('active', b.dataset.mode==='physical'));
+loadTopo();
 </script>
 {% endblock %}
