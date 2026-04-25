@@ -196,6 +196,16 @@ class MikroTikManager(DeviceConnector):
                 })
         return neighbors
 
+    def get_all_ips(self) -> list:
+        output = self.execute_command('/ip address print terse')
+        ips = []
+        for line in output.splitlines():
+            p = self._parse_terse_line(line)
+            addr = p.get('address', '')
+            if addr and '/' in addr:
+                ips.append(addr.split('/')[0])
+        return ips
+
     def get_dhcp_leases_structured(self) -> list:
         output = self.execute_command('/ip dhcp-server lease print terse')
         leases = []

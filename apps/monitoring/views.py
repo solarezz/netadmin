@@ -197,23 +197,25 @@ class TopologyApiView(LoginRequiredMixin, View):
         from services.linux_manager import LinuxManager
         from concurrent.futures import ThreadPoolExecutor
 
-        pk_to_device  = {d.pk: d for d in devices}
-        mikrotik_devs = sorted([d for d in devices if 'mikrotik' in d.device_type], key=lambda x: x.name)
-        linux_devs    = sorted([d for d in devices if d.device_type == 'linux'],    key=lambda x: x.name)
+        pk_to_device   = {d.pk: d for d in devices}
+        name_to_device = {d.name: d for d in devices}   # for MNDP identity matching
+        mikrotik_devs  = sorted([d for d in devices if 'mikrotik' in d.device_type], key=lambda x: x.name)
+        linux_devs     = sorted([d for d in devices if d.device_type == 'linux'],    key=lambda x: x.name)
 
         def fetch_mikrotik(device):
             try:
                 mgr = MikroTikManager(device)
                 mgr.connect()
                 try:
-                    mndp = mgr.get_neighbors_structured()
-                    arp  = mgr.get_arp_table_structured()
-                    gw   = mgr.get_default_gateway()
+                    mndp   = mgr.get_neighbors_structured()
+                    arp    = mgr.get_arp_table_structured()
+                    gw     = mgr.get_default_gateway()
+                    mt_ips = mgr.get_all_ips()
                 finally:
                     mgr.disconnect()
             except Exception:
-                mndp, arp, gw = [], [], ''
-            return device.pk, mndp, arp, gw
+                mndp, arp, gw, mt_ips = [], [], '', []
+            return device.pk, mndp, arp, gw, mt_ips
 
         def fetch_linux(device):
             try:
@@ -234,8 +236,15 @@ class TopologyApiView(LoginRequiredMixin, View):
             mt_results = sorted([f.result() for f in mt_futures], key=lambda x: x[0])
             lx_results = sorted([f.result() for f in lx_futures], key=lambda x: x[0])
 
-        # Extend IP map with secondary Linux IPs (e.g. 10.1.20.101 → SRV1)
+        # Extended IP map: mgmt IPs + MikroTik LAN IPs + Linux secondary IPs.
+        # Needed because MNDP/ARP/gateway use LAN IPs (10.1.10.x, 10.1.20.x) not in the DB.
         extended_ip_map = dict(ip_to_device)
+        for pk, _m, _a, _g, mt_ips in mt_results:
+            dev = pk_to_device.get(pk)
+            if dev:
+                for ip in mt_ips:
+                    if ip not in extended_ip_map:
+                        extended_ip_map[ip] = dev
         for pk, ips, _gw in lx_results:
             dev = pk_to_device.get(pk)
             if dev:
@@ -246,20 +255,23 @@ class TopologyApiView(LoginRequiredMixin, View):
         edge_set      = set()
         lan_connected = set()
 
-        # Phase 1: MikroTik↔MikroTik via MNDP — skip ether1 (management)
-        for pk, mndp, _arp, _gw in mt_results:
+        # Phase 1: MikroTik↔MikroTik via MNDP — skip ether1 (management).
+        # Primary lookup by neighbor IP; fallback by MNDP identity (device name)
+        # because routers advertise their LAN IP which may differ from DB mgmt IP.
+        for pk, mndp, _a, _g, _i in mt_results:
             for nbr in mndp:
                 iface = nbr.get('interface', '')
                 if not iface or iface == 'ether1':
                     continue
-                nbr_dev = ip_to_device.get(nbr.get('address', ''))
+                nbr_dev = (ip_to_device.get(nbr.get('address', ''))
+                           or name_to_device.get(nbr.get('identity', '')))
                 if nbr_dev and nbr_dev.pk != pk and 'mikrotik' in nbr_dev.device_type:
                     edge = tuple(sorted([pk, nbr_dev.pk]))
                     edge_set.add(edge)
                     lan_connected.update([pk, nbr_dev.pk])
 
         # Phase 2a: Switch ARP → Linux (switches are the preferred L2 connection point)
-        for pk, _mndp, arp, _gw in mt_results:
+        for pk, _m, arp, _g, _i in mt_results:
             dev = pk_to_device.get(pk)
             if not dev or dev.device_type != 'mikrotik_switch':
                 continue
@@ -272,8 +284,8 @@ class TopologyApiView(LoginRequiredMixin, View):
                     edge_set.add(edge)
                     lan_connected.update([pk, nbr_dev.pk])
 
-        # Phase 2b: Router ARP → Linux (only for servers not yet reached via a switch)
-        for pk, _mndp, arp, _gw in mt_results:
+        # Phase 2b: Router ARP → Linux (only servers not yet connected via a switch)
+        for pk, _m, arp, _g, _i in mt_results:
             dev = pk_to_device.get(pk)
             if not dev or dev.device_type != 'mikrotik_router':
                 continue
@@ -287,14 +299,15 @@ class TopologyApiView(LoginRequiredMixin, View):
                         edge_set.add(edge)
                         lan_connected.update([pk, nbr_dev.pk])
 
-        # Phase 3: Default gateway fallback for devices with no LAN connection found
-        gw_map = {pk: gw for pk, _m, _a, gw in mt_results if gw}
+        # Phase 3: Default gateway fallback for isolated devices.
+        # Uses extended_ip_map so gateway IPs like 10.1.20.1 resolve to the right router.
+        gw_map = {pk: gw for pk, _m, _a, gw, _i in mt_results if gw}
         gw_map.update({pk: gw for pk, _i, gw in lx_results if gw})
 
         for pk in sorted(gw_map):
             if pk in lan_connected:
                 continue
-            gw_dev = ip_to_device.get(gw_map[pk])
+            gw_dev = extended_ip_map.get(gw_map[pk])
             if gw_dev and gw_dev.pk != pk:
                 edge = tuple(sorted([pk, gw_dev.pk]))
                 edge_set.add(edge)
