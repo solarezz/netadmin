@@ -313,6 +313,21 @@ class TopologyApiView(LoginRequiredMixin, View):
                 edge_set.add(edge)
                 lan_connected.add(pk)
 
+        # Phase 4: ARP fallback for devices still isolated (e.g. SSH unreachable from inside
+        # a Docker container running on the same host as the target Linux server).
+        # Scans all MikroTik ARP entries, including ether1, looking for the management IP.
+        isolated_pks = {d.pk for d in devices if d.pk not in lan_connected}
+        for pk, _m, arp, _g, _i in mt_results:
+            if not isolated_pks:
+                break
+            for entry in arp:
+                nbr_dev = ip_to_device.get(entry.get('ip', ''))
+                if nbr_dev and nbr_dev.pk in isolated_pks and nbr_dev.pk != pk:
+                    edge = tuple(sorted([pk, nbr_dev.pk]))
+                    edge_set.add(edge)
+                    lan_connected.add(nbr_dev.pk)
+                    isolated_pks.discard(nbr_dev.pk)
+
         return [{'id': i + 1, 'from': a, 'to': b} for i, (a, b) in enumerate(sorted(edge_set))]
 
 
