@@ -287,7 +287,7 @@ function render(data) {
   const links = data.edges.map(e => ({...e, source: nodeMap[e.from], target: nodeMap[e.to]})).filter(l=>l.source&&l.target);
 
   // Адаптивные силы по размеру сети, слегка увеличенные для большей свободы
-  const repulsion = COUNT <= 4 ? -450 : COUNT <= 8 ? -600 : -800;
+  const repulsion = COUNT <= 4 ? -450 : COUNT <= 8 ? -700 : -900;
   const linkDist  = COUNT <= 4 ? 180  : COUNT <= 8 ? 220  : 260;
 
   if (simulation) simulation.stop();
@@ -297,12 +297,24 @@ function render(data) {
     .force('link',    d3.forceLink(links).id(d=>d.id).distance(linkDist).strength(0.8))
     .force('charge',  d3.forceManyBody().strength(repulsion))
     .force('center',  d3.forceCenter(W/2, H/2).strength(0.4))
-    .force('collide', d3.forceCollide(75)) // Больший радиус для коллизий, чтобы не накладывались
-    .alphaDecay(0.02) // Медленнее затухает, чтобы было видно красивую анимацию
-    .on('tick', ticked);
+    .force('collide', d3.forceCollide(80)) // Больший радиус для коллизий, чтобы не накладывались
+    .alphaDecay(0.02)
+    .stop();
 
-  // Если это первый запуск, прокрутим несколько тиков невидимо, чтобы избежать резкого скачка
-  if (oldMap.size === 0) simulation.tick(25);
+  // "Сразу красиво": крутим симуляцию синхронно перед самым первым рендером, чтобы граф был распутан идеально сразу.
+  if (oldMap.size === 0) {
+    for(let i=0; i<300; i++) simulation.tick();
+  }
+
+  // Запускаем асинхронный тик для работы Drag and Drop
+  simulation.on('tick', ticked);
+
+  // Жестко ограничиваем координаты краями
+  const PAD = 60;
+  nodes.forEach(n => {
+    n.x = Math.max(PAD, Math.min(W-PAD, n.x));
+    n.y = Math.max(PAD, Math.min(H-PAD, n.y));
+  });
 
   /* Remove old nodes */
   canvas.querySelectorAll('.topo-node').forEach(el=>el.remove());
@@ -318,6 +330,10 @@ function render(data) {
 
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', l.source.x);
+    line.setAttribute('y1', l.source.y);
+    line.setAttribute('x2', l.target.x);
+    line.setAttribute('y2', l.target.y);
     line.setAttribute('stroke', stroke);
     line.setAttribute('stroke-width', broken ? 1.5 : 2);
     if(broken) line.setAttribute('stroke-dasharray','5 4');
@@ -326,19 +342,24 @@ function render(data) {
     g.appendChild(line);
 
     let am = null;
+    let dot = null;
     if(!broken && !warn) {
-      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
       dot.setAttribute('r','2.5');
       dot.setAttribute('fill','oklch(0.55 0.17 265)');
       am = document.createElementNS('http://www.w3.org/2000/svg','animateMotion');
       am.setAttribute('dur', `${3+(i%3)}s`);
       am.setAttribute('repeatCount','indefinite');
+      if (l.source.x !== l.target.x || l.source.y !== l.target.y) {
+          am.setAttribute('path', `M${l.source.x},${l.source.y} L${l.target.x},${l.target.y}`);
+      }
       dot.appendChild(am);
       g.appendChild(dot);
     }
 
     svg.appendChild(g);
     l.line = line;
+    l.dot = dot;
     l.am = am;
   });
 
@@ -350,6 +371,8 @@ function render(data) {
 
     const div = document.createElement('div');
     div.className = 'topo-node';
+    div.style.left = n.x + 'px';
+    div.style.top  = n.y + 'px';
     div.innerHTML = `
       <div class="${cls}">${iconSVG(n.device_type, sz)}</div>
       <div class="node-label">${n.label}</div>
@@ -380,7 +403,6 @@ function render(data) {
   });
 
   function ticked() {
-    const PAD = 50;
     nodes.forEach(n => {
       n.x = Math.max(PAD, Math.min(W-PAD, n.x));
       n.y = Math.max(PAD, Math.min(H-PAD, n.y));
@@ -397,8 +419,14 @@ function render(data) {
         l.line.setAttribute('x2', l.target.x);
         l.line.setAttribute('y2', l.target.y);
       }
-      if(l.am && l.source.x !== l.target.x) {
-        l.am.setAttribute('path',`M${l.source.x},${l.source.y} L${l.target.x},${l.target.y}`);
+      if(l.am && l.dot && (l.source.x !== l.target.x || l.source.y !== l.target.y)) {
+        const newP = `M${l.source.x},${l.source.y} L${l.target.x},${l.target.y}`;
+        if (l.am.getAttribute('path') !== newP) {
+           const newAm = l.am.cloneNode();
+           newAm.setAttribute('path', newP);
+           l.dot.replaceChild(newAm, l.am);
+           l.am = newAm;
+        }
       }
     });
   }
