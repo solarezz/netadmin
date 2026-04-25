@@ -269,7 +269,7 @@ class TopologyApiView(LoginRequiredMixin, View):
 
         # Стартуем с наиболее связного узла (скорее всего core)
         core_pks = {d.pk for d in devices if 'core' in d.name.lower() or 'perimeter' in d.name.lower()}
-        start = next(iter(core_pks)) if core_pks else max(all_pks, key=lambda p: len(adj[p]))
+        start = min(core_pks) if core_pks else max(all_pks, key=lambda p: (len(adj[p]), -p))
 
         visited = {start}
         queue = deque([start])
@@ -277,7 +277,7 @@ class TopologyApiView(LoginRequiredMixin, View):
 
         while queue:
             node = queue.popleft()
-            for nb in sorted(adj[node], key=lambda p: -len(adj[p])):  # old hub-first
+            for nb in sorted(adj[node], key=lambda p: (-len(adj[p]), p)):  # stable sort guarantees deterministic tree
                 if nb not in visited:
                     visited.add(nb)
                     queue.append(nb)
