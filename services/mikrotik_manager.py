@@ -161,6 +161,29 @@ class MikroTikManager(DeviceConnector):
         return neighbors
 
 
+    def get_ospf_neighbors(self) -> list:
+        """Returns directly-adjacent OSPF neighbors (Full/2-Way state only).
+        Unlike MNDP, OSPF adjacencies reflect actual routing-level connectivity."""
+        output = self.execute_command('/routing ospf neighbor print terse')
+        neighbors = []
+        for line in output.splitlines():
+            if '=' not in line:
+                continue
+            p = self._parse_terse_line(line)
+            state = p.get('state', '')
+            if state and 'full' not in state.lower() and '2-way' not in state.lower():
+                continue
+            address = p.get('address', '')
+            router_id = p.get('router-id', '')
+            if address or router_id:
+                neighbors.append({
+                    'address':   address,
+                    'router_id': router_id,
+                    'interface': p.get('interface', ''),
+                    'state':     state,
+                })
+        return neighbors
+
     def get_dhcp_leases_structured(self) -> list:
         output = self.execute_command('/ip dhcp-server lease print terse')
         leases = []

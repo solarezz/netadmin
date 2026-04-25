@@ -205,52 +205,68 @@ class TopologyApiView(LoginRequiredMixin, View):
         def fetch(device):
             try:
                 with MikroTikManager(device) as mgr:
-                    neighbors = mgr.get_neighbors_structured()
-                    arp = mgr.get_arp_table_structured() if linux_ips else []
-                    return device, neighbors, arp
+                    mndp = mgr.get_neighbors_structured()
+                    arp  = mgr.get_arp_table_structured() if linux_ips else []
+                    try:
+                        ospf = mgr.get_ospf_neighbors()
+                    except Exception:
+                        ospf = []
+                    return device, mndp, arp, ospf
             except Exception:
-                return device, [], []
+                return device, [], [], []
 
         all_results = []
         with ThreadPoolExecutor(max_workers=4) as pool:
             futures = {pool.submit(fetch, d): d for d in online_mikrotik}
-            for future in as_completed(futures, timeout=15):
+            for future in as_completed(futures, timeout=20):
                 try:
                     all_results.append(future.result())
                 except Exception:
                     pass
 
-        # Sort by device name for deterministic edge building
+        # Sort by device name — guarantees deterministic processing order
         all_results.sort(key=lambda r: r[0].name)
 
-        # Build per-device neighbor sets for bidirectional check
-        device_neighbor_map = {}
-        for device, neighbors, _ in all_results:
-            device_neighbor_map[device.pk] = {
-                ip_to_device[n['address']].pk
-                for n in neighbors
-                if n.get('address') in ip_to_device and ip_to_device[n['address']].pk != device.pk
-            }
-
         edge_set = set()
+        ospf_connected = set()  # pks of devices that have at least one confirmed OSPF link
 
-        # MikroTik ↔ MikroTik: only bidirectional MNDP pairs are real physical links.
-        # MNDP is a broadcast protocol that sees all devices on the same L2 domain,
-        # so we require both sides to report each other to filter multi-hop noise.
-        for device, neighbors, _ in all_results:
-            for n in neighbors:
-                neighbor = ip_to_device.get(n['address'])
-                if not neighbor or neighbor.pk == device.pk:
+        # Phase 1 — OSPF: only directly-adjacent routing neighbors.
+        # OSPF adjacencies are link-scoped; unlike MNDP they never span multiple hops.
+        for device, _, _, ospf_nbrs in all_results:
+            for nbr in ospf_nbrs:
+                # Try neighbor address first, then OSPF router-id (often = management IP)
+                neighbor = (ip_to_device.get(nbr['address']) or
+                            ip_to_device.get(nbr['router_id']))
+                if not neighbor or 'mikrotik' not in neighbor.device_type:
                     continue
-                if 'mikrotik' not in neighbor.device_type:
-                    continue
-                if device.pk in device_neighbor_map.get(neighbor.pk, set()):
-                    edge_set.add(tuple(sorted([device.pk, neighbor.pk])))
+                edge_set.add(tuple(sorted([device.pk, neighbor.pk])))
+                ospf_connected.add(device.pk)
+                ospf_connected.add(neighbor.pk)
 
-        # ARP: MikroTik ↔ Linux — processed in sorted order so the result is
-        # deterministic (first non-mgmt interface seen wins).
+        # Phase 2 — ARP for non-OSPF MikroTik devices (L2 switches, test routers).
+        # Among all routers that see the device in ARP, pick the alphabetically-first
+        # one that reports it on a non-mgmt interface (deterministic).
+        switch_candidates = {}  # switch_pk -> [(router_pk, is_non_mgmt)]
+        for device, _, arp_entries, _ in all_results:
+            for entry in arp_entries:
+                seen = ip_to_device.get(entry['ip'])
+                if not seen or seen.pk == device.pk:
+                    continue
+                if 'mikrotik' not in seen.device_type:
+                    continue
+                if seen.pk in ospf_connected:
+                    continue  # already wired via OSPF
+                is_non_mgmt = entry.get('interface', '') not in ('ether1', 'bridge', 'bridge1')
+                switch_candidates.setdefault(seen.pk, []).append((device.pk, is_non_mgmt))
+
+        for switch_pk, candidates in switch_candidates.items():
+            # prefer non-mgmt interface; break ties alphabetically by router_pk
+            candidates.sort(key=lambda c: (not c[1], c[0]))
+            edge_set.add(tuple(sorted([switch_pk, candidates[0][0]])))
+
+        # Phase 3 — ARP for Linux servers (deterministic: sorted device order, non-mgmt wins).
         linux_connections = {}
-        for device, _, arp_entries in all_results:
+        for device, _, arp_entries, _ in all_results:
             for entry in arp_entries:
                 linux = linux_ips.get(entry['ip'])
                 if not linux:
