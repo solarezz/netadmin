@@ -2,6 +2,7 @@ import io
 import zipfile
 import hashlib
 import difflib
+import paramiko
 from django.views.generic import ListView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from apps.accounts.mixins import OperatorRequiredMixin
@@ -12,6 +13,39 @@ from django.utils import timezone
 from .models import ConfigBackup
 from apps.devices.models import Device
 from services import get_connector
+
+
+def _parse_linux_archive_path(config_text: str) -> str | None:
+    """Извлекает путь /tmp/etc_backup_*.tar.gz из заголовка config_text."""
+    for line in config_text.splitlines():
+        if line.startswith('# Архив /etc:'):
+            path = line.split(':', 1)[-1].strip()
+            if path:
+                return path
+    return None
+
+
+def _fetch_via_sftp(device, remote_path: str) -> bytes:
+    """Скачивает файл с устройства по SFTP, возвращает байты."""
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(
+        hostname=str(device.ip_address),
+        port=device.ssh_port,
+        username=device.username,
+        password=device.password,
+        timeout=15,
+        look_for_keys=False,
+        allow_agent=False,
+    )
+    try:
+        sftp = ssh.open_sftp()
+        buf = io.BytesIO()
+        sftp.getfo(remote_path, buf)
+        sftp.close()
+        return buf.getvalue()
+    finally:
+        ssh.close()
 
 
 class BackupListView(LoginRequiredMixin, ListView):
@@ -94,17 +128,44 @@ class BackupDownloadView(LoginRequiredMixin, View):
         name_base = f"backup_{backup.device.name}_{ts}"
 
         if fmt == 'zip':
-            buf = io.BytesIO()
-            with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-                zf.writestr(f"{name_base}.txt", backup.config_text)
-            buf.seek(0)
-            response = HttpResponse(buf.read(), content_type='application/zip')
-            response['Content-Disposition'] = f'attachment; filename="{name_base}.zip"'
+            response = self._zip_response(backup, name_base)
         else:
             response = HttpResponse(backup.config_text, content_type='text/plain; charset=utf-8')
             response['Content-Disposition'] = f'attachment; filename="{name_base}.txt"'
 
         return response
+
+    @staticmethod
+    def _zip_response(backup, name_base):
+        """
+        Linux: пытается скачать реальный tar.gz с сервера по SFTP и упаковать в zip.
+        Fallback / MikroTik: пакует текст конфига в zip.
+        """
+        if backup.device.device_type == 'linux':
+            archive_path = _parse_linux_archive_path(backup.config_text)
+            if archive_path:
+                try:
+                    tar_data = _fetch_via_sftp(backup.device, archive_path)
+                    archive_name = archive_path.rsplit('/', 1)[-1]  # etc_backup_*.tar.gz
+
+                    buf = io.BytesIO()
+                    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_STORED) as zf:
+                        zf.writestr(archive_name, tar_data)
+                    buf.seek(0)
+                    resp = HttpResponse(buf.read(), content_type='application/zip')
+                    resp['Content-Disposition'] = f'attachment; filename="{name_base}.zip"'
+                    return resp
+                except Exception:
+                    pass  # сервер недоступен или файл удалён — fallback ниже
+
+        # MikroTik или fallback: текст в zip
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(f"{name_base}.txt", backup.config_text)
+        buf.seek(0)
+        resp = HttpResponse(buf.read(), content_type='application/zip')
+        resp['Content-Disposition'] = f'attachment; filename="{name_base}.zip"'
+        return resp
 
 
 class BackupBulkDownloadView(LoginRequiredMixin, View):
@@ -121,10 +182,27 @@ class BackupBulkDownloadView(LoginRequiredMixin, View):
         with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
             for b in backups:
                 ts = b.created_at.strftime('%Y-%m-%d_%H-%M')
-                zf.writestr(f"backup_{b.device.name}_{ts}.txt", b.config_text)
-        buf.seek(0)
+                name_base = f"backup_{b.device.name}_{ts}"
 
+                if b.device.device_type == 'linux':
+                    archive_path = _parse_linux_archive_path(b.config_text)
+                    if archive_path:
+                        try:
+                            tar_data = _fetch_via_sftp(b.device, archive_path)
+                            archive_name = archive_path.rsplit('/', 1)[-1]
+                            zf.writestr(
+                                zipfile.ZipInfo(f"{b.device.name}/{archive_name}"),
+                                tar_data,
+                            )
+                            continue
+                        except Exception:
+                            pass
+
+                # Fallback / MikroTik
+                zf.writestr(f"{name_base}.txt", b.config_text)
+
+        buf.seek(0)
         now = timezone.now().strftime('%Y-%m-%d_%H-%M')
-        response = HttpResponse(buf.read(), content_type='application/zip')
-        response['Content-Disposition'] = f'attachment; filename="netadmin_backups_{now}.zip"'
-        return response
+        resp = HttpResponse(buf.read(), content_type='application/zip')
+        resp['Content-Disposition'] = f'attachment; filename="netadmin_backups_{now}.zip"'
+        return resp
