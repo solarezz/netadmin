@@ -1,54 +1,84 @@
 {% extends 'base.html' %}
 
-{% block title %}Выполнение команд — {{ device.name }}{% endblock %}
+{% block title %}Терминал — {{ device.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="flex items-center text-sm text-slate-400 mb-5 gap-1.5">
+    <a href="{% url 'dashboard' %}" class="hover:text-slate-600 transition-colors">Dashboard</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <a href="{% url 'device-list' %}" class="hover:text-slate-600 transition-colors">Оборудование</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <a href="{% url 'device-detail' device.pk %}" class="hover:text-slate-600 transition-colors">{{ device.name }}</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <span class="text-slate-700 font-medium">Терминал</span>
+</nav>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+
+{# ── Header ── #}
+<div class="flex justify-between items-start mb-5 flex-wrap gap-3">
     <div>
-        <a href="{% url 'device-detail' device.pk %}" class="text-muted text-decoration-none small">
-            <i class="bi bi-arrow-left"></i> {{ device.name }}
-        </a>
-        <h4 class="fw-bold mb-0 mt-1">
-            <i class="bi bi-terminal text-success"></i> Выполнение команд
-        </h4>
+        <h1 class="text-xl font-bold text-slate-800 leading-tight flex items-center gap-2">
+            <i class="bi bi-terminal text-emerald-500"></i> Выполнение команд
+        </h1>
+        <p class="text-sm text-slate-500 mt-0.5">{{ device.name }}</p>
     </div>
-    <div>
-        <span class="badge bg-{{ device.get_status_color }} me-2">{{ device.get_status_display }}</span>
-        <code>{{ device.ip_address }}</code>
-        <span class="badge bg-light text-dark border ms-2">{{ device.get_device_type_display }}</span>
+    <div class="flex items-center gap-2 flex-wrap">
+        {% if device.status == 'online' %}
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span> Онлайн
+        </span>
+        {% elif device.status == 'offline' %}
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span> Офлайн
+        </span>
+        {% else %}
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span> Предупреждение
+        </span>
+        {% endif %}
+        <code class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-mono">{{ device.ip_address }}</code>
+        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">{{ device.get_device_type_display }}</span>
     </div>
 </div>
 
-<div class="row g-4">
-    <div class="col-lg-8">
-        <!-- Быстрые команды -->
+<div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
+
+    {# ── Left: terminal area ── #}
+    <div class="flex flex-col gap-4">
+
+        {# Quick commands #}
         {% if suggested_commands %}
-        <div class="card border-0 shadow-sm mb-3">
-            <div class="card-header bg-white border-0 py-2">
-                <small class="text-muted fw-semibold">БЫСТРЫЕ КОМАНДЫ</small>
+        <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+            <div class="px-4 py-2.5 border-b border-slate-100">
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Быстрые команды</span>
             </div>
-            <div class="card-body py-2">
-                <div class="d-flex flex-wrap gap-2">
-                    {% for cmd in suggested_commands %}
-                    <button class="btn btn-outline-secondary btn-sm quick-cmd" data-cmd="{{ cmd }}">
-                        <code>{{ cmd }}</code>
-                    </button>
-                    {% endfor %}
-                </div>
+            <div class="px-4 py-3 flex flex-wrap gap-2">
+                {% for cmd in suggested_commands %}
+                <button class="quick-cmd inline-flex items-center px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-xs font-mono text-slate-600 transition-colors shadow-sm"
+                        data-cmd="{{ cmd }}">{{ cmd }}</button>
+                {% endfor %}
             </div>
         </div>
         {% endif %}
 
-        <!-- Ввод команды -->
-        <div class="card border-0 shadow-sm mb-3">
-            <div class="card-body">
+        {# Command input #}
+        <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+            <div class="p-4">
                 <form id="cmd-form">
                     {% csrf_token %}
-                    <div class="input-group">
-                        <span class="input-group-text bg-dark text-success font-monospace">$</span>
-                        <input type="text" id="cmd-input" class="form-control font-monospace"
-                               placeholder="Введите команду..." autocomplete="off" autofocus>
-                        <button type="submit" class="btn btn-success" id="btn-exec">
+                    <div class="flex gap-2">
+                        <div class="flex-1 flex items-center gap-2 rounded-md px-3 py-2 border border-slate-700"
+                             style="background:#1e1e1e">
+                            <span class="text-emerald-400 font-mono text-sm font-bold select-none">$</span>
+                            <input type="text" id="cmd-input"
+                                   style="background:transparent; color:#e2e8f0; font-family:'Courier New',monospace; font-size:0.85rem; border:none; outline:none; flex:1;"
+                                   placeholder="Введите команду..."
+                                   autocomplete="off" autofocus>
+                        </div>
+                        <button type="submit" id="btn-exec"
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors whitespace-nowrap">
                             <i class="bi bi-play-fill"></i> Выполнить
                         </button>
                     </div>
@@ -56,90 +86,91 @@
             </div>
         </div>
 
-        <!-- Область вывода (терминал) -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-header d-flex justify-content-between align-items-center py-2"
-                 style="background:#1e1e1e; border:0;">
-                <small class="text-muted font-monospace">OUTPUT</small>
-                <button class="btn btn-link btn-sm text-muted p-0" id="btn-clear" title="Очистить">
+        {# Terminal output #}
+        <div class="rounded-lg overflow-hidden shadow-sm" style="border:1px solid #374151">
+            <div class="flex items-center justify-between px-4 py-2.5" style="background:#1a1f2e; border-bottom:1px solid #2d3748">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded-full" style="background:#ff5f57"></span>
+                    <span class="w-3 h-3 rounded-full" style="background:#febc2e"></span>
+                    <span class="w-3 h-3 rounded-full" style="background:#28c840"></span>
+                </div>
+                <span style="font-size:11px; color:#6b7280; font-family:'Courier New',monospace;">OUTPUT</span>
+                <button id="btn-clear" title="Очистить"
+                        style="color:#6b7280; background:none; border:none; cursor:pointer; font-size:12px; padding:2px 4px; border-radius:4px;"
+                        onmouseover="this.style.color='#9ca3af'" onmouseout="this.style.color='#6b7280'">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             <div id="output-area"
-                 style="background:#1e1e1e; color:#00ff41; font-family:'Courier New',monospace;
-                        font-size:0.85rem; padding:1rem; min-height:300px; max-height:600px;
-                        overflow-y:auto; border-radius:0 0 0.375rem 0.375rem; white-space:pre-wrap;">
-                <span class="text-muted">Готов к работе. Выберите команду или введите вручную.</span>
+                 style="background:#0d1117; color:#00ff41; font-family:'Courier New',monospace;
+                        font-size:0.85rem; padding:1.25rem; min-height:340px; max-height:600px;
+                        overflow-y:auto; white-space:pre-wrap; line-height:1.6;">
+                <span style="color:#4b5563">Готов к работе. Выберите команду или введите вручную.</span>
             </div>
         </div>
+
     </div>
 
-    <!-- История команд -->
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-3">
-                <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history text-secondary"></i> История</h6>
-            </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush" id="history-list">
-                    {% for log in recent_commands %}
-                    <li class="list-group-item px-3 py-2 history-item" data-cmd="{{ log.command }}">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <code class="small text-truncate" style="max-width:170px;" title="{{ log.command }}">{{ log.command }}</code>
-                            {% if log.success %}
-                                <i class="bi bi-check-circle text-success ms-1 flex-shrink-0"></i>
-                            {% else %}
-                                <i class="bi bi-x-circle text-danger ms-1 flex-shrink-0"></i>
-                            {% endif %}
-                        </div>
-                        <div class="text-muted" style="font-size:0.7rem;">{{ log.executed_at|date:"d.m H:i:s" }}</div>
-                    </li>
-                    {% empty %}
-                    <li class="list-group-item text-center text-muted small py-3">История пуста</li>
-                    {% endfor %}
-                </ul>
-            </div>
+    {# ── Right: history ── #}
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm" style="height:fit-content">
+        <div class="px-4 py-3.5 border-b border-slate-200 flex items-center gap-2">
+            <i class="bi bi-clock-history text-slate-400 text-sm"></i>
+            <span class="font-semibold text-slate-700 text-sm">История</span>
         </div>
+        <ul class="divide-y divide-slate-100 overflow-y-auto" style="max-height:520px" id="history-list">
+            {% for log in recent_commands %}
+            <li class="px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors history-item"
+                data-cmd="{{ log.command }}">
+                <div class="flex justify-between items-start gap-2">
+                    <code class="text-xs text-slate-600 overflow-hidden" style="max-width:195px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;"
+                          title="{{ log.command }}">{{ log.command }}</code>
+                    {% if log.success %}
+                    <i class="bi bi-check-circle-fill text-emerald-500 flex-shrink-0" style="font-size:11px; margin-top:2px"></i>
+                    {% else %}
+                    <i class="bi bi-x-circle-fill text-red-500 flex-shrink-0" style="font-size:11px; margin-top:2px"></i>
+                    {% endif %}
+                </div>
+                <div class="font-mono text-slate-400 mt-0.5" style="font-size:11px">{{ log.executed_at|date:"d.m H:i:s" }}</div>
+            </li>
+            {% empty %}
+            <li class="px-4 py-6 text-center text-slate-400 text-sm">История пуста</li>
+            {% endfor %}
+        </ul>
     </div>
+
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const csrfToken = '{{ csrf_token }}';
-const executeUrl = '{% url "device-execute" device.pk %}';
-const outputArea = document.getElementById('output-area');
-const cmdInput = document.getElementById('cmd-input');
-const btnExec = document.getElementById('btn-exec');
+const csrfToken   = '{{ csrf_token }}';
+const executeUrl  = '{% url "device-execute" device.pk %}';
+const outputArea  = document.getElementById('output-area');
+const cmdInput    = document.getElementById('cmd-input');
+const btnExec     = document.getElementById('btn-exec');
 
 function runCommand(cmd) {
     if (!cmd.trim()) return;
     cmdInput.value = cmd;
-    outputArea.textContent = `$ ${cmd}\n\nВыполняю...`;
+    outputArea.textContent = '$ ' + cmd + '\n\nВыполняю...';
+    outputArea.style.color = '#00ff41';
     btnExec.disabled = true;
-    btnExec.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btnExec.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle"></span>';
 
     fetch(executeUrl, {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': csrfToken,
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `command=${encodeURIComponent(cmd)}`
+        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'command=' + encodeURIComponent(cmd),
     })
     .then(r => r.json())
     .then(data => {
-        outputArea.textContent = `$ ${cmd}\n\n${data.output || '(нет вывода)'}`;
-        if (!data.success) {
-            outputArea.style.color = '#ff6b6b';
-        } else {
-            outputArea.style.color = '#00ff41';
-        }
+        outputArea.textContent = '$ ' + cmd + '\n\n' + (data.output || '(нет вывода)');
+        outputArea.style.color = data.success ? '#00ff41' : '#ff6b6b';
         outputArea.scrollTop = outputArea.scrollHeight;
         addToHistory(cmd, data.success);
     })
     .catch(err => {
-        outputArea.textContent = `$ ${cmd}\n\nОшибка связи: ${err}`;
+        outputArea.textContent = '$ ' + cmd + '\n\nОшибка связи: ' + err;
         outputArea.style.color = '#ff6b6b';
     })
     .finally(() => {
@@ -150,42 +181,26 @@ function runCommand(cmd) {
 
 function addToHistory(cmd, success) {
     const list = document.getElementById('history-list');
-    const emptyItem = list.querySelector('.text-muted');
-    if (emptyItem && emptyItem.textContent.trim() === 'История пуста') {
-        list.innerHTML = '';
-    }
+    const emptyItem = list.querySelector('li.text-center');
+    if (emptyItem) list.innerHTML = '';
     const now = new Date();
-    const timeStr = now.toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const t = now.toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
     const li = document.createElement('li');
-    li.className = 'list-group-item px-3 py-2 history-item';
+    li.className = 'px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors history-item';
     li.dataset.cmd = cmd;
     li.innerHTML = `
-        <div class="d-flex justify-content-between align-items-start">
-            <code class="small text-truncate" style="max-width:170px;" title="${cmd}">${cmd}</code>
-            <i class="bi ${success ? 'bi-check-circle text-success' : 'bi-x-circle text-danger'} ms-1 flex-shrink-0"></i>
+        <div class="flex justify-between items-start gap-2">
+            <code class="text-xs text-slate-600 overflow-hidden" style="max-width:195px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;" title="${cmd}">${cmd}</code>
+            <i class="bi ${success ? 'bi-check-circle-fill text-emerald-500' : 'bi-x-circle-fill text-red-500'} flex-shrink-0" style="font-size:11px;margin-top:2px"></i>
         </div>
-        <div class="text-muted" style="font-size:0.7rem;">${timeStr}</div>`;
+        <div class="font-mono text-slate-400 mt-0.5" style="font-size:11px">${t}</div>`;
     list.prepend(li);
     li.addEventListener('click', () => runCommand(li.dataset.cmd));
 }
 
-// Форма
-document.getElementById('cmd-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    runCommand(cmdInput.value);
-});
-
-// Быстрые команды
-document.querySelectorAll('.quick-cmd').forEach(btn => {
-    btn.addEventListener('click', () => runCommand(btn.dataset.cmd));
-});
-
-// История — клик
-document.querySelectorAll('.history-item').forEach(item => {
-    item.addEventListener('click', () => runCommand(item.dataset.cmd));
-});
-
-// Очистить
+document.getElementById('cmd-form').addEventListener('submit', e => { e.preventDefault(); runCommand(cmdInput.value); });
+document.querySelectorAll('.quick-cmd').forEach(b => b.addEventListener('click', () => runCommand(b.dataset.cmd)));
+document.querySelectorAll('.history-item').forEach(i => i.addEventListener('click', () => runCommand(i.dataset.cmd)));
 document.getElementById('btn-clear').addEventListener('click', () => {
     outputArea.textContent = 'Готов к работе.';
     outputArea.style.color = '#00ff41';
@@ -193,4 +208,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
     cmdInput.focus();
 });
 </script>
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
 {% endblock %}

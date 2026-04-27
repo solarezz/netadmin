@@ -2,29 +2,73 @@
 
 {% block title %}Бэкап — {{ backup.device.name }}{% endblock %}
 
+{% block breadcrumbs %}
+<nav class="flex items-center text-sm text-slate-400 mb-5 gap-1.5">
+    <a href="{% url 'backup-list' %}" class="hover:text-slate-600 transition-colors">Бэкапы</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <a href="{% url 'device-detail' backup.device.pk %}" class="hover:text-slate-600 transition-colors">{{ backup.device.name }}</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <span class="text-slate-700 font-medium">{{ backup.created_at|date:"d.m.Y H:i" }}</span>
+</nav>
+{% endblock %}
+
 {% block content %}
-<div class="mb-3">
-    <a href="{% url 'backup-list' %}" class="text-muted text-decoration-none small">
-        <i class="bi bi-arrow-left"></i> Назад к бэкапам
-    </a>
-    <h4 class="fw-bold mt-1">
-        <i class="bi bi-file-text text-secondary"></i> Конфигурация {{ backup.device.name }}
-    </h4>
-    <p class="text-muted small">
-        Создан: {{ backup.created_at|date:"d.m.Y H:i:s" }} —
-        {% if backup.is_automatic %}Автоматически{% else %}Вручную {% if backup.created_by %}({{ backup.created_by }}){% endif %}{% endif %} —
-        {{ backup.size_kb }} KB
-    </p>
+
+{# ── Header ── #}
+<div class="flex justify-between items-start mb-5 gap-4 flex-wrap">
+    <div>
+        <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i class="bi bi-file-text text-slate-500"></i>
+            Конфигурация {{ backup.device.name }}
+        </h1>
+        <div class="flex items-center gap-3 mt-2 flex-wrap">
+            <span class="text-sm text-slate-500">
+                <i class="bi bi-calendar3 mr-1 opacity-70"></i>{{ backup.created_at|date:"d.m.Y H:i:s" }}
+            </span>
+            <span class="text-slate-300">·</span>
+            {% if backup.is_automatic %}
+            <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">Авто</span>
+            {% else %}
+            <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">
+                Вручную{% if backup.created_by %} ({{ backup.created_by }}){% endif %}
+            </span>
+            {% endif %}
+            <span class="text-slate-300">·</span>
+            <span class="text-xs font-mono text-slate-400">{{ backup.size_kb }} KB</span>
+        </div>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'backup-download' backup.pk %}?format=txt"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
+            <i class="bi bi-file-text" style="font-size:12px"></i> .txt
+        </a>
+        <a href="{% url 'backup-download' backup.pk %}?format=zip"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors shadow-sm">
+            <i class="bi bi-file-zip" style="font-size:12px"></i> .zip
+        </a>
+    </div>
 </div>
 
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-dark text-muted py-2">
-        <small>{{ backup.device.name }} — {{ backup.device.ip_address }}</small>
+{# ── Code viewer ── #}
+<div class="rounded-lg overflow-hidden shadow-sm" style="border:1px solid #30363d">
+    <div class="flex items-center justify-between px-4 py-2.5" style="background:#161b22; border-bottom:1px solid #30363d">
+        <div class="flex items-center gap-2">
+            <i class="bi bi-file-code" style="color:#6e7681; font-size:13px"></i>
+            <span style="color:#8b949e; font-size:12px; font-family:'Courier New',monospace">
+                {{ backup.device.name }} · {{ backup.device.ip_address }}
+            </span>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full" style="background:#ff5f57; opacity:.7"></span>
+            <span class="w-2.5 h-2.5 rounded-full" style="background:#febc2e; opacity:.7"></span>
+            <span class="w-2.5 h-2.5 rounded-full" style="background:#28c840; opacity:.7"></span>
+        </div>
     </div>
-    <div class="card-body p-0">
-        <pre style="background:#1e1e1e; color:#c9d1d9; font-family:'Courier New',monospace;
-                    font-size:0.8rem; margin:0; padding:1rem; max-height:70vh; overflow:auto;
-                    border-radius:0 0 0.375rem 0.375rem;">{{ backup.config_text }}</pre>
-    </div>
+    <pre style="background:#0d1117; color:#c9d1d9;
+                font-family:'JetBrains Mono','Courier New',monospace;
+                font-size:0.78rem; margin:0; padding:1.25rem;
+                max-height:72vh; overflow:auto;
+                line-height:1.65; tab-size:4;">{{ backup.config_text }}</pre>
 </div>
+
 {% endblock %}

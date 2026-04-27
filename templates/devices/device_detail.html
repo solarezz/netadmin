@@ -3,112 +3,207 @@
 {% block title %}{{ device.name }}{% endblock %}
 
 {% block breadcrumbs %}
-<nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb small">
-        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none text-secondary">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'device-list' %}" class="text-decoration-none text-secondary">Оборудование</a></li>
-        <li class="breadcrumb-item active text-dark fw-medium">{{ device.name }}</li>
-    </ol>
+<nav class="flex items-center text-sm text-slate-400 mb-5 gap-1.5">
+    <a href="{% url 'dashboard' %}" class="hover:text-slate-600 transition-colors">Dashboard</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <a href="{% url 'device-list' %}" class="hover:text-slate-600 transition-colors">Оборудование</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <span class="text-slate-700 font-medium">{{ device.name }}</span>
 </nav>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1 d-flex align-items-center gap-2 text-dark">
-            <span class="badge bg-{{ device.get_status_color }} rounded-circle p-2" style="width: 12px; height: 12px;" title="{{ device.get_status_display }}"></span>
-            {{ device.name }}
-        </h4>
-        <p class="text-muted small mb-0">{{ device.get_device_type_display }} • {{ device.ip_address }}</p>
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-start mb-6 gap-4 flex-wrap">
+    <div class="flex items-center gap-3">
+        <div class="w-3 h-3 rounded-full flex-shrink-0
+            {% if device.status == 'online' %}bg-emerald-500 shadow-[0_0_6px_2px_rgba(16,185,129,0.4)]
+            {% elif device.status == 'offline' %}bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.4)]
+            {% else %}bg-amber-400 shadow-[0_0_6px_2px_rgba(251,191,36,0.4)]{% endif %}"></div>
+        <div>
+            <h1 class="text-xl font-bold text-slate-800 leading-tight">{{ device.name }}</h1>
+            <p class="text-sm text-slate-500 mt-0.5">
+                {{ device.get_device_type_display }}
+                <span class="text-slate-300 mx-1">·</span>
+                <span class="font-mono text-slate-600">{{ device.ip_address }}</span>
+            </p>
+        </div>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="flex gap-2 flex-wrap items-center">
+
+        {# ── Service date widget ── #}
+        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white shadow-sm"
+             id="service-widget" title="Дата последнего обслуживания">
+            <i class="bi bi-wrench text-slate-400" style="font-size:12px"></i>
+            <span class="text-xs text-slate-400 font-medium select-none">Обслужан:</span>
+            <span class="text-xs font-semibold {% if device.serviced_at %}text-slate-700{% else %}text-slate-400{% endif %}"
+                  id="service-date-label">
+                {% if device.serviced_at %}{{ device.serviced_at|date:"d.m.Y" }}{% else %}—{% endif %}
+            </span>
+            {% if is_operator %}
+            <button id="service-edit-btn" onclick="openServiceEdit()"
+                    class="ml-1 text-slate-400 hover:text-blue-500 transition-colors" title="Изменить дату">
+                <i class="bi bi-pencil" style="font-size:10px"></i>
+            </button>
+            {% endif %}
+        </div>
+
+        {# Inline date editor (hidden by default) #}
+        {% if is_operator %}
+        <div id="service-edit-panel" class="hidden items-center gap-1.5 px-2 py-1 rounded-md border border-blue-300 bg-blue-50 shadow-sm">
+            <i class="bi bi-wrench text-blue-400" style="font-size:12px"></i>
+            <input type="date" id="service-date-input"
+                   value="{{ device.serviced_at|date:'Y-m-d' }}"
+                   class="text-xs border-0 bg-transparent text-slate-700 focus:outline-none cursor-pointer"
+                   style="width:115px">
+            <button onclick="saveServiceDate()"
+                    class="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-500 hover:bg-blue-600 text-white transition-colors" title="Сохранить">
+                <i class="bi bi-check" style="font-size:11px"></i>
+            </button>
+            <button onclick="closeServiceEdit()"
+                    class="inline-flex items-center justify-center w-6 h-6 rounded border border-slate-200 bg-white text-slate-400 hover:text-slate-600 transition-colors" title="Отмена">
+                <i class="bi bi-x" style="font-size:11px"></i>
+            </button>
+            <button onclick="clearServiceDate()"
+                    class="inline-flex items-center justify-center w-6 h-6 rounded border border-red-200 bg-white text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Сбросить дату">
+                <i class="bi bi-trash" style="font-size:10px"></i>
+            </button>
+        </div>
+        {% endif %}
+
         {% if 'mikrotik' in device.device_type %}
-        <a href="http://{{ device.ip_address }}" target="_blank" class="btn btn-light text-primary border-0 shadow-sm d-flex align-items-center gap-2">
-            <i class="bi bi-box-arrow-up-right"></i> WebFig
+        <a href="http://{{ device.ip_address }}" target="_blank"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+            <i class="bi bi-box-arrow-up-right text-xs"></i> WebFig
         </a>
         {% endif %}
         {% if is_operator %}
-        <a href="{% url 'device-execute' device.pk %}" class="btn btn-dark shadow-sm d-flex align-items-center gap-2">
-            <i class="bi bi-terminal"></i> Выполнить команду
+        <a href="{% url 'device-execute' device.pk %}"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-slate-800 text-white hover:bg-slate-700 transition-colors shadow-sm">
+            <i class="bi bi-terminal text-xs"></i> Терминал
         </a>
-        <form method="post" action="{% url 'backup-create' device.pk %}" class="d-inline">
+        <form method="post" action="{% url 'backup-create' device.pk %}" class="inline">
             {% csrf_token %}
-            <button type="submit" class="btn btn-light text-secondary border-0 shadow-sm d-flex align-items-center gap-2">
-                <i class="bi bi-archive"></i> Бэкап
+            <button type="submit"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
+                <i class="bi bi-archive text-xs"></i> Бэкап
             </button>
         </form>
-        <a href="{% url 'device-edit' device.pk %}" class="btn btn-light text-primary border-0 shadow-sm" title="Редактировать">
-            <i class="bi bi-pencil"></i>
+        <a href="{% url 'device-edit' device.pk %}"
+           class="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-colors shadow-sm" title="Редактировать">
+            <i class="bi bi-pencil text-xs"></i>
         </a>
-        <a href="{% url 'device-delete' device.pk %}" class="btn btn-light text-danger border-0 shadow-sm" title="Удалить">
-            <i class="bi bi-trash"></i>
+        <a href="{% url 'device-delete' device.pk %}"
+           class="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors shadow-sm" title="Удалить">
+            <i class="bi bi-trash text-xs"></i>
         </a>
         {% endif %}
     </div>
 </div>
 
-<div class="row g-4">
-    <!-- Основная информация -->
-    <div class="col-md-5 d-flex flex-column gap-4">
-        <div class="card border-0 shadow-sm flex-grow-1">
-            <div class="card-header bg-white border-0 py-3">
-                <h6 class="mb-0 fw-bold d-flex align-items-center gap-2 text-dark">
-                    <i class="bi bi-info-circle text-primary"></i> Общая информация
-                </h6>
+{# ── Two-column layout ── #}
+<div class="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-5 mb-5">
+
+    {# Info card #}
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+        <div class="px-5 py-3.5 border-b border-slate-200 flex items-center gap-2">
+            <i class="bi bi-info-circle text-blue-500 text-sm"></i>
+            <span class="font-semibold text-slate-700 text-sm">Общая информация</span>
+        </div>
+        <div class="divide-y divide-slate-100">
+            <div class="flex px-5 py-2.5 gap-4 items-baseline">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">Тип</span>
+                <span class="text-sm text-slate-700">{{ device.get_device_type_display }}</span>
             </div>
-            <div class="card-body border-top p-0">
-                <table class="table table-sm table-borderless mb-0 m-2">
-                    <tbody>
-                        <tr><th class="text-muted fw-medium py-2 w-40" style="padding-left:1.5rem">Тип</th><td class="py-2 text-dark">{{ device.get_device_type_display }}</td></tr>
-                        <tr><th class="text-muted fw-medium py-2" style="padding-left:1.5rem">IP-адрес</th><td class="py-2"><code class="px-2 py-1 bg-light text-primary rounded">{{ device.ip_address }}:{{ device.ssh_port }}</code></td></tr>
-                        <tr><th class="text-muted fw-medium py-2" style="padding-left:1.5rem">Статус</th>
-                            <td class="py-2"><span class="badge bg-{{ device.get_status_color }} opacity-75 bg-opacity-10 text-{{ device.get_status_color }} border border-{{ device.get_status_color }} fw-medium px-2 py-1">{{ device.get_status_display }}</span></td></tr>
-                        <tr><th class="text-muted fw-medium py-2" style="padding-left:1.5rem">Расположение</th><td class="py-2 text-dark">{{ device.location|default:"—" }}</td></tr>
-                        <tr><th class="text-muted fw-medium py-2" style="padding-left:1.5rem">Описание</th><td class="small text-muted py-2">{{ device.description|default:"—" }}</td></tr>
-                        <tr><th class="text-muted fw-medium py-2" style="padding-left:1.5rem">Модель</th><td class="py-2 text-dark">{{ device.model|default:"—" }}</td></tr>
-                        <tr><th class="text-muted fw-medium py-2" style="padding-left:1.5rem">Версия ОС</th><td class="py-2 text-dark">{{ device.os_version|default:"—" }}</td></tr>
-                        <tr><th class="text-muted fw-medium py-2" style="padding-left:1.5rem">Uptime</th><td class="py-2 text-dark">{{ device.uptime|default:"—" }}</td></tr>
-                        <tr><th class="text-muted fw-medium py-2" style="padding-left:1.5rem">Последний ответ</th>
-                            <td class="py-2 text-muted">{% if device.last_seen %}{{ device.last_seen|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td></tr>
-                    </tbody>
-                </table>
+            <div class="flex px-5 py-2.5 gap-4 items-baseline">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">IP-адрес</span>
+                <code class="text-xs bg-slate-100 text-blue-700 px-2 py-0.5 rounded font-mono">{{ device.ip_address }}:{{ device.ssh_port }}</code>
+            </div>
+            <div class="flex px-5 py-2.5 gap-4 items-center">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">Статус</span>
+                {% if device.status == 'online' %}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>Онлайн
+                </span>
+                {% elif device.status == 'offline' %}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>Офлайн
+                </span>
+                {% else %}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>Предупреждение
+                </span>
+                {% endif %}
+            </div>
+            <div class="flex px-5 py-2.5 gap-4 items-baseline">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">Расположение</span>
+                <span class="text-sm text-slate-700">{{ device.location|default:"—" }}</span>
+            </div>
+            <div class="flex px-5 py-2.5 gap-4 items-baseline">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">Описание</span>
+                <span class="text-sm text-slate-500">{{ device.description|default:"—" }}</span>
+            </div>
+            <div class="flex px-5 py-2.5 gap-4 items-baseline">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">Модель</span>
+                <span class="text-sm text-slate-700">{{ device.model|default:"—" }}</span>
+            </div>
+            <div class="flex px-5 py-2.5 gap-4 items-baseline">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">Версия ОС</span>
+                <span class="text-sm text-slate-700">{{ device.os_version|default:"—" }}</span>
+            </div>
+            <div class="flex px-5 py-2.5 gap-4 items-baseline">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">Uptime</span>
+                <span>
+                    <span class="text-sm font-mono text-slate-700" id="info-uptime">{{ device.uptime|default:"—" }}</span>
+                    {% if device.last_seen %}
+                    <span class="text-[11px] text-slate-400 ml-2">на {{ device.last_seen|date:"H:i d.m" }}</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="flex px-5 py-2.5 gap-4 items-baseline">
+                <span class="text-xs font-medium text-slate-400 w-32 flex-shrink-0">Последний ответ</span>
+                <span class="text-sm text-slate-500">{% if device.last_seen %}{{ device.last_seen|date:"d.m.Y H:i" }}{% else %}—{% endif %}</span>
             </div>
         </div>
     </div>
 
-    <!-- Метрики и Бэкапы -->
-    <div class="col-md-7 d-flex flex-column gap-4">
+    {# Right column #}
+    <div class="flex flex-col gap-5">
+
+        {# Metrics #}
         {% if recent_metrics %}
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold d-flex align-items-center gap-2 text-dark">
-                    <i class="bi bi-graph-up text-success"></i> Телеметрия ресурсов
-                </h6>
-                <small class="text-muted fw-medium" id="metrics-timestamp">
+        <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+            <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="bi bi-graph-up text-emerald-500 text-sm"></i>
+                    <span class="font-semibold text-slate-700 text-sm">Телеметрия ресурсов</span>
+                </div>
+                <span class="text-xs text-slate-400 font-mono" id="metrics-timestamp">
                     {% with m=recent_metrics.0 %}{{ m.timestamp|date:"H:i:s" }}{% endwith %}
-                </small>
+                </span>
             </div>
-            <div class="card-body border-top py-4">
+            <div class="px-6 py-5">
                 {% with m=recent_metrics.0 %}
-                <div class="row g-4 text-center">
-                    <div class="col-6">
-                        <div class="text-uppercase small text-muted fw-bold mb-1" style="letter-spacing: 1px;">CPU Load</div>
-                        <div class="fw-bold fs-2 text-primary lh-1 mb-3" id="metric-cpu">
+                <div class="grid grid-cols-2 gap-8">
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">CPU Load</div>
+                        <div class="text-3xl font-bold tracking-tight mb-3 leading-none text-blue-600" id="metric-cpu">
                             {% if m.cpu_usage is not None %}{{ m.cpu_usage }}{% else %}—{% endif %}%
                         </div>
-                        <div class="progress bg-light" style="height:6px; border-radius: 4px;">
-                            <div class="progress-bar bg-primary" id="bar-cpu"
-                                 style="width:{% if m.cpu_usage %}{{ m.cpu_usage }}{% else %}0{% endif %}%; border-radius: 4px;"></div>
+                        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-500 rounded-full transition-all duration-500" id="bar-cpu"
+                                 style="width:{% if m.cpu_usage %}{{ m.cpu_usage }}{% else %}0{% endif %}%"></div>
                         </div>
                     </div>
-                    <div class="col-6">
-                        <div class="text-uppercase small text-muted fw-bold mb-1" style="letter-spacing: 1px;">RAM Usage</div>
-                        <div class="fw-bold fs-2 text-warning lh-1 mb-3" id="metric-ram">
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">RAM Usage</div>
+                        <div class="text-3xl font-bold tracking-tight mb-3 leading-none text-amber-500" id="metric-ram">
                             {% if m.memory_usage is not None %}{{ m.memory_usage }}{% else %}—{% endif %}%
                         </div>
-                        <div class="progress bg-light" style="height:6px; border-radius: 4px;">
-                            <div class="progress-bar bg-warning" id="bar-ram"
-                                 style="width:{% if m.memory_usage %}{{ m.memory_usage }}{% else %}0{% endif %}%; border-radius: 4px;"></div>
+                        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-amber-400 rounded-full transition-all duration-500" id="bar-ram"
+                                 style="width:{% if m.memory_usage %}{{ m.memory_usage }}{% else %}0{% endif %}%"></div>
                         </div>
                     </div>
                 </div>
@@ -117,173 +212,214 @@
         </div>
         {% endif %}
 
-        <!-- Последние бэкапы -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold d-flex align-items-center gap-2 text-dark">
-                    <i class="bi bi-journal-code text-secondary"></i> История конфигураций
-                </h6>
-                <a href="{% url 'backup-list' %}?device={{ device.pk }}" class="btn btn-link btn-sm text-primary text-decoration-none p-0 fw-medium">Все</a>
-            </div>
-            <div class="card-body p-0 border-top">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 list-table align-middle">
-                        <thead class="table-light"><tr><th style="padding-left: 1.5rem;">Дата создания</th><th>Режим</th><th>Размер</th><th class="text-end" style="padding-right: 1.5rem;">Действия</th></tr></thead>
-                        <tbody>
-                            {% for backup in recent_backups %}
-                            <tr>
-                                <td class="small fw-medium text-dark" style="padding-left: 1.5rem;">{{ backup.created_at|date:"d.m.Y H:i" }}</td>
-                                <td>
-                                    {% if backup.is_automatic %}
-                                        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 border border-secondary">Авто</span>
-                                    {% else %}
-                                        <span class="badge bg-primary bg-opacity-10 text-primary px-2 border border-primary">Ручной</span>
-                                    {% endif %}
-                                </td>
-                                <td class="small text-muted">{{ backup.size_kb }} KB</td>
-                                <td class="text-end" style="padding-right: 1.5rem;">
-                                    <a href="{% url 'backup-view' backup.pk %}" class="btn btn-link text-secondary p-0" title="Посмотреть"><i class="bi bi-eye"></i></a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="4" class="text-center text-muted py-4">Архив конфигураций пуст</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        {# Recent backups #}
+        <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+            <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="bi bi-journal-code text-slate-500 text-sm"></i>
+                    <span class="font-semibold text-slate-700 text-sm">История конфигураций</span>
                 </div>
+                <a href="{% url 'backup-list' %}?device={{ device.pk }}"
+                   class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">Все →</a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200">
+                            <th class="px-5 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Дата</th>
+                            <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Режим</th>
+                            <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Размер</th>
+                            <th class="px-5 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for backup in recent_backups %}
+                        <tr class="hover:bg-slate-50/70 transition-colors">
+                            <td class="px-5 py-2.5 font-mono text-xs font-medium text-slate-700">{{ backup.created_at|date:"d.m.Y H:i" }}</td>
+                            <td class="px-4 py-2.5">
+                                {% if backup.is_automatic %}
+                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">Авто</span>
+                                {% else %}
+                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">Ручной</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-2.5 text-xs text-slate-400 font-mono">{{ backup.size_kb }} KB</td>
+                            <td class="px-5 py-2.5 text-right">
+                                <div class="inline-flex gap-1">
+                                    <a href="{% url 'backup-view' backup.pk %}"
+                                       class="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors" title="Просмотр">
+                                        <i class="bi bi-eye" style="font-size:11px"></i>
+                                    </a>
+                                    <a href="{% url 'backup-download' backup.pk %}?format=txt"
+                                       class="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors" title=".txt">
+                                        <i class="bi bi-file-text" style="font-size:11px"></i>
+                                    </a>
+                                    <a href="{% url 'backup-download' backup.pk %}?format=zip"
+                                       class="inline-flex items-center justify-center w-7 h-7 rounded border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title=".zip">
+                                        <i class="bi bi-file-zip" style="font-size:11px"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="px-5 py-8 text-center text-slate-400 text-sm">
+                                <i class="bi bi-archive block text-2xl mb-2 opacity-25"></i>
+                                Архив конфигураций пуст
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
+
     </div>
 </div>
 
 {% if 'mikrotik' in device.device_type %}
-<!-- Подключённые устройства -->
-<div class="card border-0 shadow-sm mt-4" id="connected-card">
-    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold d-flex align-items-center gap-2 text-dark">
-            <i class="bi bi-diagram-3 text-primary"></i> Клиенты и соседи <span id="connected-count" class="badge bg-primary ms-2 rounded-pill px-2"></span>
-        </h6>
-        <button class="btn btn-light text-secondary btn-sm shadow-sm" onclick="loadConnected()">
+{# ── Connected Devices ── #}
+<div class="bg-white rounded-lg border border-slate-200 shadow-sm mb-5" id="connected-card">
+    <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+            <i class="bi bi-diagram-3 text-blue-500 text-sm"></i>
+            <span class="font-semibold text-slate-700 text-sm">Клиенты и соседи</span>
+            <span id="connected-count"
+                  class="hidden min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 inline-flex items-center justify-center"></span>
+        </div>
+        <button onclick="loadConnected()"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors">
             <i class="bi bi-arrow-clockwise"></i> Обновить
         </button>
     </div>
-    <div class="card-body p-0 border-top">
-        <div id="connected-error" class="alert alert-danger m-3 border-0 shadow-sm" style="display:none"></div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 list-table align-middle" id="connected-table">
-                <thead class="table-light">
-                    <tr>
-                        <th style="padding-left: 1.5rem;">IP-адрес</th>
-                        <th>MAC-адрес</th>
-                        <th>Имя хоста</th>
-                        <th>Интерфейс</th>
-                        <th>Источник</th>
-                        <th style="padding-right: 1.5rem;">Последняя активность</th>
-                    </tr>
-                </thead>
-                <tbody id="connected-tbody">
-                    <tr><td colspan="6" class="text-center text-muted py-4">
-                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>Идёт сбор данных...
-                    </td></tr>
-                </tbody>
-            </table>
-        </div>
+    <div id="connected-error"
+         class="hidden mx-5 mt-4 px-4 py-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700"></div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm" id="connected-table">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200">
+                    <th class="px-5 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">IP-адрес</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">MAC</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Имя хоста</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Интерфейс</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Источник</th>
+                    <th class="px-5 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Активность</th>
+                </tr>
+            </thead>
+            <tbody id="connected-tbody" class="divide-y divide-slate-100">
+                <tr>
+                    <td colspan="6" class="px-5 py-6 text-center text-slate-400 text-sm">
+                        <span class="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
+                        Идёт сбор данных...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>
 {% endif %}
 
-<!-- История команд -->
-<div class="card border-0 shadow-sm mt-4 mb-4">
-    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold d-flex align-items-center gap-2 text-dark">
-            <i class="bi bi-terminal text-dark"></i> Выполненные команды
-        </h6>
+{# ── Command Log ── #}
+<div class="bg-white rounded-lg border border-slate-200 shadow-sm mb-5">
+    <div class="px-5 py-3.5 border-b border-slate-200 flex items-center gap-2">
+        <i class="bi bi-terminal text-slate-600 text-sm"></i>
+        <span class="font-semibold text-slate-700 text-sm">Выполненные команды</span>
     </div>
-    <div class="card-body p-0 border-top">
-        <div class="table-responsive">
-            <table class="table mb-0 list-table align-middle table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th style="padding-left: 1.5rem;">Метка времени</th>
-                        <th>Текст команды</th>
-                        <th>Оператор</th>
-                        <th style="padding-right: 1.5rem;">Статус</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in recent_commands %}
-                    <tr>
-                        <td class="small fw-medium text-dark" style="padding-left: 1.5rem;">{{ log.executed_at|date:"d.m.Y H:i:s" }}</td>
-                        <td><code class="small text-muted px-2 py-1 bg-light rounded">{{ log.command|truncatechars:80 }}</code></td>
-                        <td class="small fw-medium">{{ log.user|default:"—" }}</td>
-                        <td style="padding-right: 1.5rem;">
-                            {% if log.success %}<span class="badge bg-success bg-opacity-10 text-success border border-success px-2">Успех</span>
-                            {% else %}<span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2">Ошибка</span>{% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="4" class="text-center text-muted small py-4">Журнал команд пуст</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200">
+                    <th class="px-5 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Время</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Команда</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Оператор</th>
+                    <th class="px-5 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Статус</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for log in recent_commands %}
+                <tr class="hover:bg-slate-50/70 transition-colors">
+                    <td class="px-5 py-2.5 font-mono text-xs text-slate-500 whitespace-nowrap">{{ log.executed_at|date:"d.m.Y H:i:s" }}</td>
+                    <td class="px-4 py-2.5 max-w-xs">
+                        <code class="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono break-all">{{ log.command|truncatechars:80 }}</code>
+                    </td>
+                    <td class="px-4 py-2.5 text-sm text-slate-600">{{ log.user|default:"—" }}</td>
+                    <td class="px-5 py-2.5">
+                        {% if log.success %}
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700">
+                            <i class="bi bi-check-circle-fill" style="font-size:10px"></i> Успех
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700">
+                            <i class="bi bi-x-circle-fill" style="font-size:10px"></i> Ошибка
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="px-5 py-8 text-center text-slate-400 text-sm">Журнал команд пуст</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// ===== Авто-обновление метрик из БД каждые 30 сек (без SSH) =====
 const METRICS_URL = "{% url 'api-device-metrics' device.pk %}";
 
 function updateMetrics(data) {
-    const cpuEl  = document.getElementById('metric-cpu');
-    const ramEl  = document.getElementById('metric-ram');
-    const barCpu = document.getElementById('bar-cpu');
-    const barRam = document.getElementById('bar-ram');
-    const tsEl   = document.getElementById('metrics-timestamp');
+    const cpuEl    = document.getElementById('metric-cpu');
+    const ramEl    = document.getElementById('metric-ram');
+    const barCpu   = document.getElementById('bar-cpu');
+    const barRam   = document.getElementById('bar-ram');
+    const tsEl     = document.getElementById('metrics-timestamp');
+    const uptimeEl = document.getElementById('info-uptime');
 
     if (cpuEl)  cpuEl.textContent  = (data.cpu  !== null ? data.cpu  : '—') + '%';
     if (ramEl)  ramEl.textContent  = (data.ram  !== null ? data.ram  : '—') + '%';
     if (barCpu) barCpu.style.width = (data.cpu  || 0) + '%';
     if (barRam) barRam.style.width = (data.ram  || 0) + '%';
-    
+
     if (tsEl && data.timestamp) {
-        // Just extract the time part if the timestamp contains date to match format "H:i:s"
-        let timeOnly = data.timestamp;
-        if(timeOnly.includes(' ')) {
-            timeOnly = timeOnly.split(' ')[1];
-        }
-        tsEl.textContent = timeOnly;
+        let t = data.timestamp;
+        if (t.includes(' ')) t = t.split(' ')[1];
+        tsEl.textContent = t;
     }
 
-    // Цвет CPU по нагрузке
+    // Обновляем uptime в инфо-таблице из ответа API
+    if (uptimeEl && data.uptime) {
+        uptimeEl.textContent = data.uptime;
+    }
+
     if (cpuEl && data.cpu !== null) {
-        cpuEl.className = 'fw-bold fs-2 lh-1 mb-3 ' +
-            (data.cpu > 80 ? 'text-danger' : data.cpu > 50 ? 'text-warning' : 'text-primary');
+        cpuEl.className = 'text-3xl font-bold tracking-tight mb-3 leading-none ' +
+            (data.cpu > 80 ? 'text-red-500' : data.cpu > 50 ? 'text-amber-500' : 'text-blue-600');
     }
 }
 
 function fetchMetrics() {
-    fetch(METRICS_URL)
-        .then(r => r.json())
-        .then(updateMetrics)
-        .catch(() => {});
+    fetch(METRICS_URL).then(r => r.json()).then(updateMetrics).catch(() => {});
 }
 
 fetchMetrics();
 setInterval(fetchMetrics, 30000);
 
-// ===== Подключённые устройства =====
+// ── Connected devices ──
 function loadConnected() {
-    const tbody = document.getElementById('connected-tbody');
-    const errEl = document.getElementById('connected-error');
+    const tbody   = document.getElementById('connected-tbody');
+    const errEl   = document.getElementById('connected-error');
     const countEl = document.getElementById('connected-count');
-
     if (!tbody) return;
-    errEl.style.display = 'none';
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">' +
-        '<div class="spinner-border spinner-border-sm text-primary me-2"></div>Сбор данных...</td></tr>';
+
+    errEl.classList.add('hidden');
+    tbody.innerHTML =
+        '<tr><td colspan="6" class="px-5 py-6 text-center text-slate-400 text-sm">' +
+        '<span class="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>' +
+        'Сбор данных...</td></tr>';
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
@@ -294,36 +430,43 @@ function loadConnected() {
             clearTimeout(timer);
             if (data.error) {
                 errEl.textContent = data.error;
-                errEl.style.display = 'block';
+                errEl.classList.remove('hidden');
                 tbody.innerHTML = '';
                 return;
             }
-            if(countEl) countEl.textContent = data.count;
+            if (countEl) {
+                countEl.textContent = data.count;
+                countEl.classList.remove('hidden');
+            }
             if (!data.devices.length) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Подключённых устройств не найдено</td></tr>';
+                tbody.innerHTML =
+                    '<tr><td colspan="6" class="px-5 py-6 text-center text-slate-400 text-sm">Подключённых устройств не найдено</td></tr>';
                 return;
             }
             tbody.innerHTML = data.devices.map(d => `
-                <tr>
-                    <td style="padding-left: 1.5rem;"><code class="px-2 py-1 bg-light text-primary rounded">${d.ip}</code></td>
-                    <td><code class="text-muted">${d.mac || '—'}</code></td>
-                    <td class="fw-medium">${d.hostname || '<span class="text-muted opacity-50">—</span>'}</td>
-                    <td class="small text-muted">${d.server || d.interface || '—'}</td>
-                    <td>${d.source === 'dhcp'
-                        ? '<span class="badge bg-success bg-opacity-10 text-success border border-success fw-medium">DHCP</span>'
-                        : '<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary fw-medium">LLDP/ARP</span>'}</td>
-                    <td class="small text-muted" style="padding-right: 1.5rem;">${d.last_seen || '—'}</td>
+                <tr class="hover:bg-slate-50 transition-colors divide-y divide-slate-100">
+                    <td class="px-5 py-2.5">
+                        <code class="text-xs bg-slate-100 text-blue-700 px-2 py-0.5 rounded font-mono">${d.ip}</code>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-slate-500">${d.mac || '—'}</td>
+                    <td class="px-4 py-2.5 text-sm font-medium text-slate-700">${d.hostname || '<span class="text-slate-400">—</span>'}</td>
+                    <td class="px-4 py-2.5 text-sm text-slate-500">${d.server || d.interface || '—'}</td>
+                    <td class="px-4 py-2.5">
+                        ${d.source === 'dhcp'
+                            ? '<span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700">DHCP</span>'
+                            : '<span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-500">ARP</span>'}
+                    </td>
+                    <td class="px-5 py-2.5 text-sm text-slate-400">${d.last_seen || '—'}</td>
                 </tr>`).join('');
         })
         .catch(e => {
             clearTimeout(timer);
             errEl.textContent = e.name === 'AbortError'
-                ? 'Таймаут (15 сек). Оборудование отвечает слишком долго или недоступно.'
-                : 'Ошибка сбора данных: ' + e;
-            errEl.style.display = 'block';
+                ? 'Таймаут 15с — устройство недоступно или отвечает слишком долго.'
+                : 'Ошибка: ' + e;
+            errEl.classList.remove('hidden');
             tbody.innerHTML = '';
-        })
-        .finally(() => {});
+        });
 }
 
 {% if 'mikrotik' in device.device_type %}
@@ -332,9 +475,60 @@ if ("{{ device.status }}" === "online") {
 } else {
     const tbody = document.getElementById('connected-tbody');
     if (tbody) tbody.innerHTML =
-        '<tr><td colspan="6" class="text-center text-muted py-4">' +
-        '<i class="bi bi-slash-circle me-2 opacity-50"></i>Устройство недоступно</td></tr>';
+        '<tr><td colspan="6" class="px-5 py-6 text-center text-slate-400 text-sm">' +
+        '<i class="bi bi-slash-circle mr-2 opacity-50"></i>Устройство недоступно</td></tr>';
 }
 {% endif %}
+
+// ── Service date widget ──
+const SERVICE_URL = "{% url 'device-service-date' device.pk %}";
+const CSRF        = '{{ csrf_token }}';
+
+function openServiceEdit() {
+    document.getElementById('service-widget').classList.add('hidden');
+    const panel = document.getElementById('service-edit-panel');
+    panel.classList.remove('hidden');
+    panel.classList.add('inline-flex');
+    document.getElementById('service-date-input').focus();
+}
+
+function closeServiceEdit() {
+    document.getElementById('service-edit-panel').classList.add('hidden');
+    document.getElementById('service-edit-panel').classList.remove('inline-flex');
+    document.getElementById('service-widget').classList.remove('hidden');
+}
+
+function saveServiceDate() {
+    const val = document.getElementById('service-date-input').value;
+    _postServiceDate(val);
+}
+
+function clearServiceDate() {
+    if (!confirm('Сбросить дату обслуживания?')) return;
+    _postServiceDate('');
+}
+
+function _postServiceDate(dateStr) {
+    fetch(SERVICE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ date: dateStr }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            const lbl = document.getElementById('service-date-label');
+            if (data.date) {
+                lbl.textContent = data.date;
+                lbl.className = 'text-xs font-semibold text-slate-700';
+            } else {
+                lbl.textContent = '—';
+                lbl.className = 'text-xs font-semibold text-slate-400';
+            }
+            closeServiceEdit();
+        }
+    })
+    .catch(() => alert('Ошибка сохранения'));
+}
 </script>
 {% endblock %}

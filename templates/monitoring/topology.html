@@ -125,9 +125,22 @@
       <button class="mode-btn px-4 py-2 border-l border-slate-200" data-mode="logical" onclick="setMode('logical')">Логическая</button>
       <button class="mode-btn px-4 py-2 border-l border-slate-200" data-mode="subnet" onclick="setMode('subnet')">По подсетям</button>
     </div>
-    <button onclick="exportSVG()" class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm shadow-sm hover:bg-slate-50">
-      <i class="bi bi-download"></i> Экспорт SVG
-    </button>
+    <div class="relative" id="exp-wrap">
+      <button onclick="toggleExportMenu()"
+              class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm shadow-sm hover:bg-slate-50">
+        <i class="bi bi-download"></i> Экспорт <i class="bi bi-chevron-down" style="font-size:10px"></i>
+      </button>
+      <div id="exp-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden" style="min-width:130px">
+        <button onclick="exportImage('png')"
+                class="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+          <i class="bi bi-file-image text-blue-500"></i> PNG
+        </button>
+        <button onclick="exportImage('jpg')"
+                class="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 border-t border-slate-100">
+          <i class="bi bi-file-image text-amber-500"></i> JPEG
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -188,12 +201,13 @@
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
 const TOPO_URL = "{% url 'api-topology' %}";
-let scanAt       = null;
-let simulation   = null;
-let currentNodes = [];
+let scanAt        = null;
+let simulation    = null;
+let currentNodes  = [];
+let currentLinks  = [];
 let isDraggingNode = false;
-let currentMode  = 'physical';
-let lastData     = null;
+let currentMode   = 'physical';
+let lastData      = null;
 
 const ICONS = {
   mikrotik_router: `<rect x="2" y="13" width="20" height="7" rx="1.5"/><path d="M6 17h.01M10 17h.01M14 17h.01M18 17h.01"/><path d="M7 13V9a5 5 0 0 1 10 0v4M12 3v2"/>`,
@@ -315,6 +329,7 @@ function render(data) {
 
   const nodeMap = Object.fromEntries(nodes.map(n=>[n.id,n]));
   const links   = data.edges.map(e=>({...e, source:nodeMap[e.from], target:nodeMap[e.to]})).filter(l=>l.source&&l.target);
+  currentLinks  = links;
 
   if (simulation) simulation.stop();
 
@@ -527,11 +542,162 @@ function loadTopo() {
 }
 function fitView()  { currentNodes=[]; if(lastData) render(lastData); }
 function pan(_f)    { /* zoom placeholder */ }
-function exportSVG() {
-  const svg = document.getElementById('edge-svg');
+
+/* ── Export menu ─────────────────────────────────── */
+function toggleExportMenu() {
+  const m = document.getElementById('exp-menu');
+  m.classList.toggle('hidden');
+}
+document.addEventListener('click', e => {
+  if (!document.getElementById('exp-wrap').contains(e.target))
+    document.getElementById('exp-menu').classList.add('hidden');
+});
+
+/* ── Canvas export (PNG / JPEG) ──────────────────── */
+function svgToImg(svgStr) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+  });
+}
+
+async function exportImage(fmt) {
+  document.getElementById('exp-menu').classList.add('hidden');
+
+  const topoEl = document.getElementById('topo-canvas');
+  const W = topoEl.clientWidth;
+  const H = topoEl.clientHeight;
+  const DPR = 2;
+
+  const oc = document.createElement('canvas');
+  oc.width  = W * DPR;
+  oc.height = H * DPR;
+  const ctx = oc.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  /* ── background ── */
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#fafbfd');
+  bg.addColorStop(1, '#f4f5f8');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  /* dot grid */
+  ctx.fillStyle = 'rgba(148,163,184,0.3)';
+  for (let x = 12; x < W; x += 24)
+    for (let y = 12; y < H; y += 24) {
+      ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill();
+    }
+
+  /* ── logical tier bands ── */
+  if (currentMode === 'logical') {
+    const tierColors = ['rgba(99,102,241,0.05)','rgba(16,185,129,0.05)','rgba(245,158,11,0.05)'];
+    const tierY = [H*0.22, H*0.5, H*0.78];
+    const bandH = H * 0.28;
+    tierY.forEach((ty, i) => {
+      ctx.fillStyle = tierColors[i];
+      ctx.fillRect(0, ty - bandH/2, W, bandH);
+    });
+  }
+
+  /* ── edges ── */
+  currentLinks.forEach(l => {
+    if (!l.source || !l.target) return;
+    const broken = l.source.status==='offline' || l.target.status==='offline';
+    const warn   = l.source.status==='warning'  || l.target.status==='warning';
+    ctx.beginPath();
+    ctx.moveTo(l.source.x, l.source.y);
+    ctx.lineTo(l.target.x, l.target.y);
+    ctx.lineWidth   = broken ? 1.5 : 2;
+    ctx.strokeStyle = broken ? 'rgba(239,68,68,0.5)'
+                    : warn   ? 'rgba(245,158,11,0.6)'
+                    :          'rgba(148,163,184,0.75)';
+    ctx.lineCap     = 'round';
+    ctx.setLineDash(broken ? [5,4] : []);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  /* ── pre-load icons (one image per device type × color variant) ── */
+  const iconCache = {};
+  async function getIcon(type, color) {
+    const key = type + color;
+    if (iconCache[key]) return iconCache[key];
+    const paths = ICONS[type] || ICONS.linux;
+    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+    iconCache[key] = await svgToImg(svgStr);
+    return iconCache[key];
+  }
+
+  const STATUS_BORDER = { online:'#22c55e', offline:'#ef4444', warning:'#f59e0b', unknown:'#cbd5e1' };
+  const STATUS_BG     = { online:'#ffffff', offline:'#fef2f2', warning:'#ffffff', unknown:'#ffffff' };
+  const STATUS_ICON   = { online:'#16a34a', offline:'#dc2626', warning:'#d97706', unknown:'#94a3b8' };
+
+  for (const n of currentNodes) {
+    const isCore = n.is_core;
+    const r = isCore ? 29 : 24;
+    const border = STATUS_BORDER[n.status] || '#cbd5e1';
+    const bg2    = isCore ? '#1e293b' : (STATUS_BG[n.status] || '#fff');
+    const iconC  = isCore ? '#ffffff' : (STATUS_ICON[n.status] || '#94a3b8');
+
+    /* online ring pulse (static in export) */
+    if (n.status === 'online') {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 7, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(34,197,94,0.25)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    /* circle */
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+    ctx.fillStyle = bg2;
+    ctx.fill();
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    /* shadow */
+    ctx.shadowColor   = 'rgba(15,23,42,0.08)';
+    ctx.shadowBlur    = 8;
+    ctx.shadowOffsetY = 2;
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+    /* icon */
+    const iconSz = isCore ? 22 : 17;
+    const img = await getIcon(n.device_type, iconC);
+    ctx.drawImage(img, n.x - iconSz/2, n.y - iconSz/2, iconSz, iconSz);
+
+    /* label */
+    ctx.fillStyle    = '#0f172a';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font         = '600 11.5px system-ui, sans-serif';
+    ctx.fillText(n.label, n.x, n.y + r + 7);
+
+    /* IP */
+    ctx.font      = '10px "Courier New", monospace';
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(n.ip || '', n.x, n.y + r + 21);
+  }
+
+  /* ── watermark ── */
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.font         = '11px system-ui, sans-serif';
+  ctx.fillStyle    = 'rgba(100,116,139,0.5)';
+  ctx.fillText('NetAdmin · ' + new Date().toLocaleDateString('ru-RU'), W - 12, H - 10);
+
+  /* ── download ── */
+  const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
+  const dataURL = oc.toDataURL(mime, fmt === 'jpg' ? 0.93 : 1.0);
   const a = document.createElement('a');
-  a.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
-  a.download='topology.svg'; a.click();
+  a.href = dataURL;
+  a.download = 'topology.' + fmt;
+  a.click();
 }
 
 /* last-scan label */

@@ -35,6 +35,8 @@ class Device(models.Model):
     serial_number = models.CharField(max_length=100, blank=True)
     model = models.CharField(max_length=100, blank=True, verbose_name='Модель')
 
+    serviced_at = models.DateField(null=True, blank=True, verbose_name='Дата обслуживания')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

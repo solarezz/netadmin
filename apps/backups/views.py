@@ -1,10 +1,14 @@
+import io
+import zipfile
 import hashlib
 import difflib
 from django.views.generic import ListView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from apps.accounts.mixins import OperatorRequiredMixin
 from django.contrib import messages
+from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.utils import timezone
 from .models import ConfigBackup
 from apps.devices.models import Device
 from services import get_connector
@@ -79,3 +83,48 @@ class BackupViewDetail(LoginRequiredMixin, View):
     def get(self, request, pk):
         backup = get_object_or_404(ConfigBackup, pk=pk)
         return render(request, 'backups/backup_view.html', {'backup': backup})
+
+
+class BackupDownloadView(LoginRequiredMixin, View):
+    """Скачать один бэкап: ?format=txt (default) или ?format=zip"""
+    def get(self, request, pk):
+        backup = get_object_or_404(ConfigBackup, pk=pk)
+        fmt = request.GET.get('format', 'txt')
+        ts = backup.created_at.strftime('%Y-%m-%d_%H-%M')
+        name_base = f"backup_{backup.device.name}_{ts}"
+
+        if fmt == 'zip':
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr(f"{name_base}.txt", backup.config_text)
+            buf.seek(0)
+            response = HttpResponse(buf.read(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{name_base}.zip"'
+        else:
+            response = HttpResponse(backup.config_text, content_type='text/plain; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename="{name_base}.txt"'
+
+        return response
+
+
+class BackupBulkDownloadView(LoginRequiredMixin, View):
+    """Скачать несколько выбранных бэкапов одним ZIP-архивом (POST ids[])"""
+    def post(self, request):
+        ids = request.POST.getlist('ids')
+        if not ids:
+            messages.error(request, 'Не выбраны бэкапы для скачивания')
+            return redirect('backup-list')
+
+        backups = ConfigBackup.objects.filter(pk__in=ids).select_related('device')
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for b in backups:
+                ts = b.created_at.strftime('%Y-%m-%d_%H-%M')
+                zf.writestr(f"backup_{b.device.name}_{ts}.txt", b.config_text)
+        buf.seek(0)
+
+        now = timezone.now().strftime('%Y-%m-%d_%H-%M')
+        response = HttpResponse(buf.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="netadmin_backups_{now}.zip"'
+        return response

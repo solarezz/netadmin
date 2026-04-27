@@ -2,27 +2,52 @@
 
 {% block title %}Удалить {{ object.name }}{% endblock %}
 
+{% block breadcrumbs %}
+<nav class="flex items-center text-sm text-slate-400 mb-5 gap-1.5">
+    <a href="{% url 'device-list' %}" class="hover:text-slate-600 transition-colors">Устройства</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <a href="{% url 'device-detail' object.pk %}" class="hover:text-slate-600 transition-colors">{{ object.name }}</a>
+    <i class="bi bi-chevron-right text-[10px]"></i>
+    <span class="text-red-600 font-medium">Удаление</span>
+</nav>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-5">
-        <div class="card border-0 shadow-sm border-danger">
-            <div class="card-header bg-danger text-white border-0">
-                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Подтверждение удаления</h5>
+<div class="max-w-md mx-auto">
+    <div class="bg-white rounded-lg border border-red-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 flex items-center gap-2.5" style="background:rgba(239,68,68,.08); border-bottom:1px solid rgba(239,68,68,.2)">
+            <i class="bi bi-exclamation-triangle-fill text-red-500"></i>
+            <h2 class="text-base font-semibold text-red-700">Подтверждение удаления</h2>
+        </div>
+        <div class="px-6 py-6 text-center">
+            <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+                 style="background:rgba(239,68,68,.1)">
+                <i class="bi bi-trash text-red-500 text-2xl"></i>
             </div>
-            <div class="card-body text-center py-4">
-                <p class="fs-5">Вы уверены, что хотите удалить устройство</p>
-                <p class="fs-4 fw-bold">{{ object.name }}</p>
-                <p class="text-muted">{{ object.ip_address }} — {{ object.get_device_type_display }}</p>
-                <p class="text-danger small">Это действие необратимо. Все логи команд и бэкапы будут удалены.</p>
-                <div class="d-flex gap-2 justify-content-center mt-3">
-                    <form method="post">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger">
-                            <i class="bi bi-trash"></i> Удалить
-                        </button>
-                    </form>
-                    <a href="{% url 'device-detail' object.pk %}" class="btn btn-outline-secondary">Отмена</a>
-                </div>
+            <p class="text-slate-600 text-sm mb-1">Вы уверены, что хотите удалить устройство?</p>
+            <p class="text-xl font-bold text-slate-800 mb-1">{{ object.name }}</p>
+            <p class="text-sm text-slate-400 mb-4">
+                <span class="font-mono">{{ object.ip_address }}</span>
+                <span class="mx-1">·</span>
+                {{ object.get_device_type_display }}
+            </p>
+            <div class="inline-flex items-start gap-2 px-4 py-2.5 rounded-md text-xs text-red-600 mb-5"
+                 style="background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2)">
+                <i class="bi bi-info-circle flex-shrink-0 mt-0.5"></i>
+                <span>Это действие необратимо. Все логи команд и бэкапы этого устройства будут удалены.</span>
+            </div>
+            <div class="flex gap-3 justify-center">
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors">
+                        <i class="bi bi-trash"></i> Удалить
+                    </button>
+                </form>
+                <a href="{% url 'device-detail' object.pk %}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
+                    Отмена
+                </a>
             </div>
         </div>
     </div>

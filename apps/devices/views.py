@@ -273,6 +273,35 @@ class ConnectedDevicesView(LoginRequiredMixin, View):
             return JsonResponse({'error': str(e)}, status=500)
 
 
+class DeviceServiceDateView(OperatorRequiredMixin, LoginRequiredMixin, View):
+    """AJAX: сохранить / сбросить дату обслуживания устройства."""
+
+    def post(self, request, pk):
+        import json
+        device = get_object_or_404(Device, pk=pk)
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'error': 'Неверный формат'}, status=400)
+
+        raw = data.get('date', '').strip()
+        if raw:
+            from datetime import date
+            try:
+                year, month, day = raw.split('-')
+                device.serviced_at = date(int(year), int(month), int(day))
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Неверный формат даты (YYYY-MM-DD)'}, status=400)
+        else:
+            device.serviced_at = None
+
+        device.save(update_fields=['serviced_at'])
+        return JsonResponse({
+            'ok': True,
+            'date': device.serviced_at.strftime('%d.%m.%Y') if device.serviced_at else None,
+        })
+
+
 def _build_connection_message(ping_ok, tcp_ok, port):
     if not ping_ok:
         return f'Устройство не отвечает на ping'

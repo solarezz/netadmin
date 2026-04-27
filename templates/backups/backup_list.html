@@ -3,160 +3,192 @@
 {% block title %}Бэкапы конфигураций{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-start mb-6 gap-4 flex-wrap">
     <div>
-        <h4 class="fw-bold mb-1 text-dark">Резервные копии</h4>
-        <p class="text-muted small mb-0">Управление бэкапами и сравнение версий конфигураций</p>
+        <h1 class="text-xl font-bold text-slate-800">Резервные копии</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Управление бэкапами и сравнение версий конфигураций</p>
     </div>
 </div>
 
-<!-- Фильтр -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3 px-4">
-        <form method="get" class="row g-3 align-items-center">
-            <div class="col-auto">
-                <label class="visually-hidden" for="deviceSelect">Устройство</label>
-                <select name="device" id="deviceSelect" class="form-select bg-light border-0 shadow-sm text-secondary">
-                    <option value="">Все устройства</option>
-                    {% for dev in devices %}
-                        <option value="{{ dev.pk }}" {% if selected_device == dev.pk|stringformat:"i" %}selected{% endif %}>
-                            {{ dev.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-dark d-flex align-items-center gap-2">
-                    <i class="bi bi-funnel"></i> Применить
-                </button>
-            </div>
+{# ── Filter bar ── #}
+<div class="bg-white rounded-lg border border-slate-200 shadow-sm mb-5">
+    <div class="px-5 py-3 flex items-center gap-3 flex-wrap">
+        <form method="get" class="flex items-center gap-3 flex-wrap flex-1">
+            <select name="device" id="deviceSelect"
+                    class="text-sm border border-slate-200 rounded-md px-3 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all">
+                <option value="">Все устройства</option>
+                {% for dev in devices %}
+                <option value="{{ dev.pk }}" {% if selected_device == dev.pk|stringformat:"i" %}selected{% endif %}>
+                    {{ dev.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-slate-800 text-white hover:bg-slate-700 transition-colors">
+                <i class="bi bi-funnel" style="font-size:11px"></i> Применить
+            </button>
             {% if selected_device %}
-            <div class="col-auto ms-auto">
-                <a href="{% url 'backup-list' %}" class="text-danger text-decoration-none small d-flex align-items-center gap-1">
-                    <i class="bi bi-x-circle"></i> Сбросить
-                </a>
-            </div>
+            <a href="{% url 'backup-list' %}"
+               class="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-700 transition-colors">
+                <i class="bi bi-x-circle" style="font-size:11px"></i> Сбросить
+            </a>
             {% endif %}
         </form>
     </div>
 </div>
 
-<form id="diff-form">
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold d-flex align-items-center gap-2">
-            <i class="bi bi-archive text-primary"></i> Журнал создания копий
-        </h6>
-        <button type="button" id="btn-diff" class="btn btn-outline-info btn-sm" disabled>
-            <i class="bi bi-subtract"></i> Сравнить выбранные (2)
-        </button>
-    </div>
-    <div class="card-body p-0 border-top">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 list-table align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width:40px; padding-left: 1.5rem;"></th>
-                        <th>Дата и время</th>
-                        <th>Оборудование</th>
-                        <th>Тип</th>
-                        <th>Размер</th>
-                        <th>Автор</th>
-                        <th class="text-end" style="padding-right: 1.5rem;">Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for backup in backups %}
-                    <tr>
-                        <td style="padding-left: 1.5rem;">
-                            <input type="checkbox" class="form-check-input backup-check border-secondary"
-                                   value="{{ backup.pk }}" data-device="{{ backup.device.pk }}">
-                        </td>
-                        <td class="small text-dark fw-medium">{{ backup.created_at|date:"d.m.Y H:i:s" }}</td>
-                        <td>
-                            <a href="{% url 'device-detail' backup.device.pk %}" class="text-dark text-decoration-none fw-semibold hover-primary">
-                                {{ backup.device.name }}
-                            </a>
-                        </td>
-                        <td>
-                            {% if backup.is_automatic %}
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-2">Автоматически</span>
-                            {% else %}
-                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2">Вручную</span>
-                            {% endif %}
-                        </td>
-                        <td class="small text-muted">{{ backup.size_kb }} KB</td>
-                        <td class="small text-muted">{{ backup.created_by|default:"System" }}</td>
-                        <td class="text-end" style="padding-right: 1.5rem;">
-                            <a href="{% url 'backup-view' backup.pk %}" class="btn btn-sm btn-light text-secondary shadow-sm" title="Просмотр конфигурации">
-                                <i class="bi bi-eye"></i> Просмотр
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
-                            <i class="bi bi-archive fs-2 d-block mb-3 opacity-25"></i>
-                            <span class="d-block mb-1">Архив конфигураций пуст</span>
-                            <small class="opacity-75">Создайте первый бэкап на странице оборудования</small>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+{# ── Hidden bulk download form ── #}
+<form id="bulk-download-form" method="post" action="{% url 'backup-bulk-download' %}" class="hidden">
+    {% csrf_token %}
 </form>
 
-<!-- Пагинация -->
+{# ── Table card ── #}
+<div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+    <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+            <i class="bi bi-archive text-blue-500 text-sm"></i>
+            <span class="font-semibold text-slate-700 text-sm">Журнал создания копий</span>
+        </div>
+        <div class="flex gap-2">
+            <button type="button" id="btn-diff" disabled
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                <i class="bi bi-subtract"></i> Сравнить (2)
+            </button>
+            <button type="button" id="btn-bulk-download" disabled
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                <i class="bi bi-file-zip"></i> Скачать ZIP
+            </button>
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200">
+                    <th class="w-10 px-5 py-2.5"></th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Дата и время</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Оборудование</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Тип</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Размер</th>
+                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Автор</th>
+                    <th class="px-5 py-2.5 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Действия</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for backup in backups %}
+                <tr class="hover:bg-slate-50/70 transition-colors">
+                    <td class="px-5 py-3">
+                        <input type="checkbox" class="backup-check w-3.5 h-3.5 cursor-pointer"
+                               value="{{ backup.pk }}" data-device="{{ backup.device.pk }}">
+                    </td>
+                    <td class="px-4 py-3 font-mono text-xs font-medium text-slate-700 whitespace-nowrap">
+                        {{ backup.created_at|date:"d.m.Y H:i:s" }}
+                    </td>
+                    <td class="px-4 py-3">
+                        <a href="{% url 'device-detail' backup.device.pk %}"
+                           class="font-semibold text-slate-700 hover:text-blue-600 transition-colors">
+                            {{ backup.device.name }}
+                        </a>
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if backup.is_automatic %}
+                        <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">Авто</span>
+                        {% else %}
+                        <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">Вручную</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-xs text-slate-400 font-mono whitespace-nowrap">{{ backup.size_kb }} KB</td>
+                    <td class="px-4 py-3 text-sm text-slate-500">{{ backup.created_by|default:"System" }}</td>
+                    <td class="px-5 py-3 text-right">
+                        <div class="inline-flex gap-1">
+                            <a href="{% url 'backup-view' backup.pk %}"
+                               class="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                               title="Просмотр">
+                                <i class="bi bi-eye" style="font-size:11px"></i>
+                            </a>
+                            <a href="{% url 'backup-download' backup.pk %}?format=txt"
+                               class="inline-flex items-center gap-1 px-2 h-7 rounded border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors text-xs"
+                               title="Скачать .txt">
+                                <i class="bi bi-file-text" style="font-size:11px"></i> .txt
+                            </a>
+                            <a href="{% url 'backup-download' backup.pk %}?format=zip"
+                               class="inline-flex items-center gap-1 px-2 h-7 rounded border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-xs"
+                               title="Скачать .zip">
+                                <i class="bi bi-file-zip" style="font-size:11px"></i> .zip
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-5 py-12 text-center text-slate-400">
+                        <i class="bi bi-archive block text-4xl mb-3 opacity-20"></i>
+                        <span class="block text-sm mb-1">Архив конфигураций пуст</span>
+                        <span class="text-xs opacity-75">Создайте первый бэкап на странице оборудования</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# ── Pagination ── #}
 {% if is_paginated %}
-<nav class="mt-4 pb-2">
-    <ul class="pagination pagination-sm justify-content-center">
-        {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link text-secondary border-0 shadow-sm" href="?page={{ page_obj.previous_page_number }}{% if selected_device %}&device={{ selected_device }}{% endif %}">&laquo;</a>
-            </li>
-        {% endif %}
-        <li class="page-item disabled">
-            <span class="page-link border-0 text-secondary shadow-sm bg-light">Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
-        </li>
-        {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link text-secondary border-0 shadow-sm" href="?page={{ page_obj.next_page_number }}{% if selected_device %}&device={{ selected_device }}{% endif %}">&raquo;</a>
-            </li>
-        {% endif %}
-    </ul>
-</nav>
+<div class="flex items-center justify-center gap-2 mt-5">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if selected_device %}&device={{ selected_device }}{% endif %}"
+       class="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors text-sm">
+        <i class="bi bi-chevron-left" style="font-size:11px"></i>
+    </a>
+    {% endif %}
+    <span class="inline-flex items-center px-4 h-8 rounded-md bg-slate-100 text-slate-600 text-sm font-medium">
+        {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if selected_device %}&device={{ selected_device }}{% endif %}"
+       class="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors text-sm">
+        <i class="bi bi-chevron-right" style="font-size:11px"></i>
+    </a>
+    {% endif %}
+</div>
 {% endif %}
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const checkboxes = document.querySelectorAll('.backup-check');
-const btnDiff = document.getElementById('btn-diff');
+const btnDiff    = document.getElementById('btn-diff');
+const btnBulk    = document.getElementById('btn-bulk-download');
+const bulkForm   = document.getElementById('bulk-download-form');
 let selected = [];
 
 checkboxes.forEach(cb => {
-    cb.addEventListener('change', function() {
-        if (this.checked) {
-            if (selected.length >= 2) {
-                this.checked = false;
-                alert('Выберите не более двух бэкапов для сравнения');
-                return;
-            }
-            selected.push(this.value);
-        } else {
-            selected = selected.filter(v => v !== this.value);
-        }
+    cb.addEventListener('change', function () {
+        selected = this.checked
+            ? [...selected, this.value]
+            : selected.filter(v => v !== this.value);
         btnDiff.disabled = selected.length !== 2;
+        btnBulk.disabled = selected.length === 0;
     });
 });
 
-btnDiff.addEventListener('click', function() {
-    if (selected.length === 2) {
+btnDiff.addEventListener('click', () => {
+    if (selected.length === 2)
         window.location.href = `/backups/diff/${selected[0]}/${selected[1]}/`;
-    }
+});
+
+btnBulk.addEventListener('click', () => {
+    if (!selected.length) return;
+    bulkForm.querySelectorAll('input[name="ids"]').forEach(el => el.remove());
+    selected.forEach(id => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'ids'; inp.value = id;
+        bulkForm.appendChild(inp);
+    });
+    bulkForm.submit();
 });
 </script>
 {% endblock %}
