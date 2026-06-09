@@ -117,6 +117,7 @@ def user_create(request):
         'is_create': True,
         'errors': errors,
         'form_data': form_data,
+        'current_role': 'viewer',
     })
 
 
