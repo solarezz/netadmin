@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Удалить пользователя{% endblock %}
+
+{% block breadcrumbs %}
+<div class="flex items-center text-sm text-slate-500 mb-3">
+  <span>Главная</span>
+  <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+  <a href="{% url 'user-list' %}" class="hover:text-slate-700">Пользователи</a>
+  <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+  <span class="text-slate-800 font-medium">Удалить</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:480px;">
+  <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div class="p-6 border-b border-slate-100">
+      <div class="flex items-center gap-4">
+        <div class="w-11 h-11 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-500 flex-shrink-0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </div>
+        <div>
+          <h2 class="text-base font-semibold text-slate-800">Удалить пользователя</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Это действие невозможно отменить</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-6">
+      <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center font-bold text-sm text-slate-600">
+            {{ target_user.username|make_list|first|upper }}
+          </div>
+          <div>
+            <div class="font-semibold text-slate-800 text-sm">{{ target_user.username }}</div>
+            {% if target_user.email %}
+            <div class="text-xs text-slate-500">{{ target_user.email }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        Вы уверены, что хотите удалить пользователя
+        <strong class="text-slate-800">{{ target_user.username }}</strong>?
+        Все связанные данные сессий будут также удалены.
+      </p>
+    </div>
+
+    <div class="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
+      <a href="{% url 'user-list' %}"
+         class="text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors px-4 py-2 rounded-lg hover:bg-slate-100">
+        Отмена
+      </a>
+      <form method="post" style="display:inline">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex items-center gap-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors px-4 py-2 rounded-lg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          Удалить
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

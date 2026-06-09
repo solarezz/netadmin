@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+
+{% block title %}Настройки{% endblock %}
+
+{% block breadcrumbs %}
+<div class="flex items-center text-sm text-slate-500 mb-3">
+  <span>Главная</span>
+  <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+  <span>Система</span>
+  <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+  <span class="text-slate-800 font-medium">Настройки</span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.st {
+  --c-border:   oklch(0.92 0.006 250);
+  --c-border-s: oklch(0.88 0.008 250);
+  --c-surface:  #ffffff;
+  --c-surface2: oklch(0.97 0.005 250);
+  --c-text:     oklch(0.22 0.02 265);
+  --c-text2:    oklch(0.45 0.02 265);
+  --c-text3:    oklch(0.62 0.015 265);
+  --c-primary:  oklch(0.55 0.17 265);
+  --c-sidebar:  oklch(0.22 0.04 265);
+  --r: 10px;
+  --sh-sm: 0 1px 2px rgba(15,23,42,.04);
+}
+.st-layout { display:grid; grid-template-columns:220px 1fr; gap:20px; align-items:start; }
+
+.st-nav { background:var(--c-surface); border:1px solid var(--c-border); border-radius:var(--r); overflow:hidden; }
+.st-nav-head { padding:12px 14px; border-bottom:1px solid var(--c-border); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--c-text3); }
+.st-nav ul { list-style:none; padding:6px; margin:0; }
+.st-nav-item a {
+  display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:6px;
+  font-size:13px; font-weight:500; color:var(--c-text2); text-decoration:none;
+  transition:all 120ms;
+}
+.st-nav-item a:hover { background:var(--c-surface2); color:var(--c-text); }
+.st-nav-item a.active { background:var(--c-sidebar); color:#fff; }
+.st-nav-icon { width:20px; display:flex; justify-content:center; }
+
+.st-panel { display:none; }
+.st-panel.active { display:block; }
+
+.st-card { background:var(--c-surface); border:1px solid var(--c-border); border-radius:var(--r); overflow:hidden; }
+.st-card + .st-card { margin-top:14px; }
+.st-card-head {
+  padding:14px 20px; border-bottom:1px solid var(--c-border);
+  display:flex; align-items:center; gap:10px;
+}
+.st-card-icon { width:30px; height:30px; border-radius:7px; display:grid; place-items:center; flex-shrink:0; }
+.st-card-title { font-size:14px; font-weight:600; color:var(--c-text); }
+.st-card-sub   { font-size:12px; color:var(--c-text3); margin-top:1px; }
+.st-card-body  { padding:20px; }
+
+.st-field { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--c-border); gap:20px; }
+.st-field:last-child { border-bottom:none; padding-bottom:0; }
+.st-field:first-child { padding-top:0; }
+.st-field-info { flex:1; min-width:0; }
+.st-field-label { font-size:13.5px; font-weight:500; color:var(--c-text); }
+.st-field-desc  { font-size:12px; color:var(--c-text3); margin-top:2px; }
+.st-field-ctrl  { flex-shrink:0; }
+
+.st-input {
+  padding:7px 11px; border:1px solid var(--c-border); border-radius:7px;
+  font-size:13px; font-family:inherit; color:var(--c-text);
+  background:var(--c-surface); outline:none; width:120px; text-align:right;
+  transition:border-color 150ms, box-shadow 150ms;
+}
+.st-input:focus { border-color:var(--c-primary); box-shadow:0 0 0 3px oklch(0.55 0.17 265 / 0.12); }
+
+.st-info-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--c-border); }
+.st-info-row:last-child { border-bottom:none; padding-bottom:0; }
+.st-info-row:first-child { padding-top:0; }
+.st-info-label { font-size:13px; color:var(--c-text2); font-weight:500; }
+.st-info-value { font-size:13px; font-family:'JetBrains Mono','Courier New',monospace; color:var(--c-text); }
+
+.st-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:12px; font-weight:600; padding:3px 9px; border-radius:100px;
+}
+.st-badge-ok  { background:oklch(0.94 0.05 155); color:oklch(0.42 0.15 155); }
+.st-badge-warn{ background:oklch(0.96 0.05 75);  color:oklch(0.45 0.12 60); }
+
+.st-footer {
+  display:flex; align-items:center; justify-content:flex-end; gap:10px;
+  padding:14px 20px; border-top:1px solid var(--c-border); background:var(--c-surface2);
+}
+.st-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:13px; font-weight:500; padding:8px 16px;
+  border-radius:7px; border:1px solid var(--c-border);
+  background:var(--c-surface); color:var(--c-text);
+  transition:all 120ms; cursor:pointer;
+}
+.st-btn:hover { background:var(--c-surface2); }
+.st-btn-primary { background:var(--c-sidebar); color:#fff; border-color:var(--c-sidebar); }
+.st-btn-primary:hover { background:oklch(0.26 0.05 265); }
+
+.st-about-logo {
+  width:56px; height:56px; border-radius:14px;
+  background:oklch(0.92 0.06 265); border:1px solid oklch(0.80 0.08 265);
+  display:grid; place-items:center; color:var(--c-primary);
+  margin-bottom:12px;
+}
+.st-about-title { font-size:20px; font-weight:700; color:var(--c-text); letter-spacing:-.02em; }
+.st-about-ver   { font-size:13px; color:var(--c-text3); margin-top:3px; margin-bottom:16px; }
+.st-about-grid  { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.st-about-card  {
+  background:var(--c-surface2); border:1px solid var(--c-border);
+  border-radius:8px; padding:12px 14px;
+}
+.st-about-card-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--c-text3); margin-bottom:4px; }
+.st-about-card-value { font-size:13.5px; font-weight:600; color:var(--c-text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="st">
+
+{# Header #}
+<div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:22px;">
+  <div>
+    <h1 style="font-size:22px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px; color:var(--c-text)">Настройки системы</h1>
+    <p style="color:var(--c-text2); font-size:13.5px; margin:0">Конфигурация приложения NetAdmin</p>
+  </div>
+</div>
+
+<div class="st-layout">
+
+  {# Sidebar nav #}
+  <div class="st-nav">
+    <div class="st-nav-head">Разделы</div>
+    <ul>
+      <li class="st-nav-item">
+        <a href="#" data-tab="monitoring" class="{% if active_tab == 'monitoring' %}active{% endif %}">
+          <span class="st-nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          </span>
+          Мониторинг
+        </a>
+      </li>
+      <li class="st-nav-item">
+        <a href="#" data-tab="system" class="{% if active_tab == 'system' %}active{% endif %}">
+          <span class="st-nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          </span>
+          Система
+        </a>
+      </li>
+      <li class="st-nav-item">
+        <a href="#" data-tab="about" class="{% if active_tab == 'about' %}active{% endif %}">
+          <span class="st-nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </span>
+          О системе
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  {# Content panels #}
+  <div>
+
+    {# ── MONITORING ─────────────────────────────── #}
+    <div class="st-panel {% if active_tab == 'monitoring' %}active{% endif %}" id="panel-monitoring">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="tab" value="monitoring">
+
+        <div class="st-card">
+          <div class="st-card-head">
+            <div class="st-card-icon" style="background:oklch(0.94 0.05 155);color:oklch(0.42 0.15 155)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div>
+              <div class="st-card-title">Параметры мониторинга</div>
+              <div class="st-card-sub">Интервалы опроса и таймауты</div>
+            </div>
+          </div>
+          <div class="st-card-body">
+
+            {% with s=settings_dict.auto_refresh_interval %}
+            <div class="st-field">
+              <div class="st-field-info">
+                <div class="st-field-label">Интервал автообновления</div>
+                <div class="st-field-desc">{{ s.description }}</div>
+              </div>
+              <div class="st-field-ctrl" style="display:flex;align-items:center;gap:6px">
+                <input class="st-input" type="number" min="5" max="300" name="setting_auto_refresh_interval" value="{{ s.value }}">
+                <span style="font-size:12px;color:var(--c-text3)">сек</span>
+              </div>
+            </div>
+            {% endwith %}
+
+            {% with s=settings_dict.ping_timeout %}
+            <div class="st-field">
+              <div class="st-field-info">
+                <div class="st-field-label">Таймаут пинга</div>
+                <div class="st-field-desc">{{ s.description }}</div>
+              </div>
+              <div class="st-field-ctrl" style="display:flex;align-items:center;gap:6px">
+                <input class="st-input" type="number" min="1" max="30" name="setting_ping_timeout" value="{{ s.value }}">
+                <span style="font-size:12px;color:var(--c-text3)">сек</span>
+              </div>
+            </div>
+            {% endwith %}
+
+            {% with s=settings_dict.offline_threshold_minutes %}
+            <div class="st-field">
+              <div class="st-field-info">
+                <div class="st-field-label">Порог офлайн</div>
+                <div class="st-field-desc">{{ s.description }}</div>
+              </div>
+              <div class="st-field-ctrl" style="display:flex;align-items:center;gap:6px">
+                <input class="st-input" type="number" min="1" max="60" name="setting_offline_threshold_minutes" value="{{ s.value }}">
+                <span style="font-size:12px;color:var(--c-text3)">мин</span>
+              </div>
+            </div>
+            {% endwith %}
+
+          </div>
+        </div>
+
+        <div class="st-card">
+          <div class="st-card-head">
+            <div class="st-card-icon" style="background:oklch(0.94 0.04 280);color:oklch(0.42 0.18 280)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div>
+              <div class="st-card-title">Хранение данных</div>
+              <div class="st-card-sub">Лимиты логов и алертов</div>
+            </div>
+          </div>
+          <div class="st-card-body">
+
+            {% with s=settings_dict.max_command_history %}
+            <div class="st-field">
+              <div class="st-field-info">
+                <div class="st-field-label">История команд</div>
+                <div class="st-field-desc">{{ s.description }}</div>
+              </div>
+              <div class="st-field-ctrl" style="display:flex;align-items:center;gap:6px">
+                <input class="st-input" type="number" min="10" max="1000" name="setting_max_command_history" value="{{ s.value }}">
+                <span style="font-size:12px;color:var(--c-text3)">записей</span>
+              </div>
+            </div>
+            {% endwith %}
+
+            {% with s=settings_dict.alerts_retention_days %}
+            <div class="st-field">
+              <div class="st-field-info">
+                <div class="st-field-label">Хранение алертов</div>
+                <div class="st-field-desc">{{ s.description }}</div>
+              </div>
+              <div class="st-field-ctrl" style="display:flex;align-items:center;gap:6px">
+                <input class="st-input" type="number" min="1" max="365" name="setting_alerts_retention_days" value="{{ s.value }}">
+                <span style="font-size:12px;color:var(--c-text3)">дней</span>
+              </div>
+            </div>
+            {% endwith %}
+
+          </div>
+          <div class="st-footer">
+            <button type="submit" class="st-btn st-btn-primary">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Сохранить настройки
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    {# ── SYSTEM ──────────────────────────────────── #}
+    <div class="st-panel {% if active_tab == 'system' %}active{% endif %}" id="panel-system">
+      <div class="st-card">
+        <div class="st-card-head">
+          <div class="st-card-icon" style="background:oklch(0.95 0.03 265);color:var(--c-primary)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          </div>
+          <div>
+            <div class="st-card-title">Информация о системе</div>
+            <div class="st-card-sub">Версии компонентов и окружение</div>
+          </div>
+        </div>
+        <div class="st-card-body">
+
+          <div class="st-info-row">
+            <span class="st-info-label">Версия Django</span>
+            <span class="st-info-value">{{ django_version }}</span>
+          </div>
+          <div class="st-info-row">
+            <span class="st-info-label">Версия Python</span>
+            <span class="st-info-value">{{ python_version }}</span>
+          </div>
+          <div class="st-info-row">
+            <span class="st-info-label">База данных</span>
+            <span class="st-info-value">SQLite3</span>
+          </div>
+          <div class="st-info-row">
+            <span class="st-info-label">Режим DEBUG</span>
+            <span>
+              {% if debug %}
+              <span class="st-badge st-badge-warn">Включён</span>
+              {% else %}
+              <span class="st-badge st-badge-ok">Выключен</span>
+              {% endif %}
+            </span>
+          </div>
+          <div class="st-info-row">
+            <span class="st-info-label">Временная зона</span>
+            <span class="st-info-value">Europe/Moscow (UTC+3)</span>
+          </div>
+          <div class="st-info-row">
+            <span class="st-info-label">Язык интерфейса</span>
+            <span class="st-info-value">ru-RU</span>
+          </div>
+          <div class="st-info-row">
+            <span class="st-info-label">Статический контент</span>
+            <span class="st-info-value">/static/</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    {# ── ABOUT ───────────────────────────────────── #}
+    <div class="st-panel {% if active_tab == 'about' %}active{% endif %}" id="panel-about">
+      <div class="st-card">
+        <div class="st-card-body">
+          <div class="st-about-logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="13" width="20" height="7" rx="1.5"/><path d="M6 17h.01M10 17h.01M14 17h.01M18 17h.01"/><path d="M7 13V9a5 5 0 0 1 10 0v4M12 3v2"/></svg>
+          </div>
+          <div class="st-about-title">NetAdmin</div>
+          <div class="st-about-ver">Версия 2.4.1 — Система управления сетевыми устройствами</div>
+
+          <div class="st-about-grid">
+            <div class="st-about-card">
+              <div class="st-about-card-label">Назначение</div>
+              <div class="st-about-card-value">Мониторинг сети</div>
+            </div>
+            <div class="st-about-card">
+              <div class="st-about-card-label">Организация</div>
+              <div class="st-about-card-value">ООО ТехСервис</div>
+            </div>
+            <div class="st-about-card">
+              <div class="st-about-card-label">Поддерживаемые устройства</div>
+              <div class="st-about-card-value">MikroTik, Linux</div>
+            </div>
+            <div class="st-about-card">
+              <div class="st-about-card-label">Протоколы</div>
+              <div class="st-about-card-value">SSH, ICMP</div>
+            </div>
+          </div>
+
+          <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--c-border)">
+            <div style="font-size:12px; color:var(--c-text3); line-height:1.6">
+              Дипломный проект. Система предназначена для централизованного мониторинга,
+              управления конфигурациями и диагностики сетевых устройств на базе MikroTik RouterOS
+              и Linux-серверов.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var panels = document.querySelectorAll('.st-panel');
+var navLinks = document.querySelectorAll('[data-tab]');
+
+navLinks.forEach(function(link) {
+  link.addEventListener('click', function(e) {
+    e.preventDefault();
+    var tab = this.dataset.tab;
+    panels.forEach(function(p) { p.classList.remove('active'); });
+    navLinks.forEach(function(l) { l.classList.remove('active'); });
+    document.getElementById('panel-' + tab).classList.add('active');
+    this.classList.add('active');
+    history.replaceState(null, '', '?tab=' + tab);
+  });
+});
+</script>
+{% endblock %}

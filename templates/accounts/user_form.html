@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if is_create %}Новый пользователь{% else %}Редактировать пользователя{% endif %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="flex items-center text-sm text-slate-500 mb-3">
+  <span>Главная</span>
+  <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+  <a href="{% url 'user-list' %}" class="hover:text-slate-700">Пользователи</a>
+  <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+  <span class="text-slate-800 font-medium">{% if is_create %}Создать{% else %}Редактировать{% endif %}</span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.uf {
+  --c-border:  oklch(0.92 0.006 250);
+  --c-surface: #ffffff;
+  --c-surface2:oklch(0.97 0.005 250);
+  --c-text:    oklch(0.22 0.02 265);
+  --c-text2:   oklch(0.45 0.02 265);
+  --c-text3:   oklch(0.62 0.015 265);
+  --c-primary: oklch(0.55 0.17 265);
+  --c-sidebar: oklch(0.22 0.04 265);
+  --c-error:   oklch(0.58 0.20 20);
+  --c-error-bg:oklch(0.97 0.02 20);
+  --r: 10px;
+}
+.uf-wrap {
+  max-width:540px;
+}
+.uf-card {
+  background:var(--c-surface); border:1px solid var(--c-border);
+  border-radius:var(--r); overflow:hidden;
+}
+.uf-card-head {
+  padding:18px 24px; border-bottom:1px solid var(--c-border);
+  display:flex; align-items:center; gap:12px;
+}
+.uf-card-icon {
+  width:36px; height:36px; border-radius:9px;
+  display:grid; place-items:center; flex-shrink:0;
+  background:oklch(0.94 0.04 280); color:oklch(0.42 0.18 280);
+}
+.uf-card-title { font-size:15px; font-weight:600; color:var(--c-text); }
+.uf-card-sub   { font-size:12.5px; color:var(--c-text3); margin-top:2px; }
+.uf-body { padding:24px; display:flex; flex-direction:column; gap:18px; }
+
+.uf-field { display:flex; flex-direction:column; gap:5px; }
+.uf-label { font-size:12.5px; font-weight:500; color:var(--c-text2); }
+.uf-label span.req { color:var(--c-error); margin-left:2px; }
+.uf-input {
+  padding:8px 12px; border:1px solid var(--c-border); border-radius:7px;
+  font-size:13.5px; font-family:inherit; color:var(--c-text);
+  background:var(--c-surface); outline:none; transition:border-color 150ms, box-shadow 150ms;
+}
+.uf-input:focus { border-color:var(--c-primary); box-shadow:0 0 0 3px oklch(0.55 0.17 265 / 0.12); }
+.uf-input.error { border-color:var(--c-error); background:var(--c-error-bg); }
+.uf-error { font-size:12px; color:var(--c-error); display:flex; align-items:center; gap:5px; }
+.uf-hint  { font-size:12px; color:var(--c-text3); }
+
+.uf-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+.uf-role-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.uf-role-card {
+  border:2px solid var(--c-border); border-radius:8px; padding:12px;
+  cursor:pointer; transition:all 120ms; position:relative;
+}
+.uf-role-card:hover { border-color:oklch(0.78 0.04 265); }
+.uf-role-card input[type=radio] { position:absolute; opacity:0; width:0; height:0; }
+.uf-role-card.selected-admin    { border-color:oklch(0.62 0.18 280); background:oklch(0.97 0.02 280); }
+.uf-role-card.selected-operator { border-color:oklch(0.62 0.15 155); background:oklch(0.97 0.03 155); }
+.uf-role-card.selected-viewer   { border-color:var(--c-primary);    background:oklch(0.97 0.02 265); }
+.uf-role-name { font-size:13px; font-weight:600; color:var(--c-text); margin-bottom:4px; }
+.uf-role-desc { font-size:11.5px; color:var(--c-text3); line-height:1.4; }
+.uf-role-icon {
+  width:28px; height:28px; border-radius:7px;
+  display:grid; place-items:center; margin-bottom:8px;
+}
+.uf-role-icon-admin    { background:oklch(0.94 0.04 280); color:oklch(0.42 0.18 280); }
+.uf-role-icon-operator { background:oklch(0.94 0.05 155); color:oklch(0.42 0.15 155); }
+.uf-role-icon-viewer   { background:var(--c-surface2);    color:var(--c-text2); }
+
+.uf-divider { border:none; border-top:1px solid var(--c-border); margin:0; }
+.uf-section-title { font-size:12px; font-weight:600; color:var(--c-text3); text-transform:uppercase; letter-spacing:.05em; }
+
+.uf-footer {
+  display:flex; align-items:center; justify-content:flex-end; gap:10px;
+  padding:16px 24px; border-top:1px solid var(--c-border);
+  background:var(--c-surface2);
+}
+.uf-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:13px; font-weight:500; padding:8px 16px;
+  border-radius:7px; border:1px solid var(--c-border);
+  background:var(--c-surface); color:var(--c-text);
+  transition:all 120ms; cursor:pointer; text-decoration:none;
+}
+.uf-btn:hover { background:var(--c-surface2); }
+.uf-btn-primary { background:var(--c-sidebar); color:#fff; border-color:var(--c-sidebar); }
+.uf-btn-primary:hover { background:oklch(0.26 0.05 265); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="uf">
+<div class="uf-wrap">
+<div class="uf-card">
+
+  {# Header #}
+  <div class="uf-card-head">
+    <div class="uf-card-icon">
+      {% if is_create %}
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M17 11l2 2 4-4" style="display:none"/></svg>
+      {% else %}
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      {% endif %}
+    </div>
+    <div>
+      <div class="uf-card-title">
+        {% if is_create %}Создать пользователя{% else %}Редактировать: {{ target_user.username }}{% endif %}
+      </div>
+      <div class="uf-card-sub">
+        {% if is_create %}Заполните данные нового аккаунта{% else %}Изменение данных учётной записи{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Form #}
+  <form method="post">
+    {% csrf_token %}
+    <div class="uf-body">
+
+      {# Username (create only) #}
+      {% if is_create %}
+      <div class="uf-field">
+        <label class="uf-label" for="id_username">Имя пользователя<span class="req">*</span></label>
+        <input id="id_username" name="username" type="text"
+               value="{{ form_data.username|default:'' }}"
+               class="uf-input {% if errors.username %}error{% endif %}"
+               placeholder="например: ivanov" autocomplete="off" required>
+        {% if errors.username %}
+        <div class="uf-error">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          {{ errors.username }}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {# Full name #}
+      <div class="uf-grid2">
+        <div class="uf-field">
+          <label class="uf-label" for="id_first_name">Имя</label>
+          <input id="id_first_name" name="first_name" type="text"
+                 value="{% if form_data %}{{ form_data.first_name|default:'' }}{% elif target_user %}{{ target_user.first_name }}{% endif %}"
+                 class="uf-input" placeholder="Иван">
+        </div>
+        <div class="uf-field">
+          <label class="uf-label" for="id_last_name">Фамилия</label>
+          <input id="id_last_name" name="last_name" type="text"
+                 value="{% if form_data %}{{ form_data.last_name|default:'' }}{% elif target_user %}{{ target_user.last_name }}{% endif %}"
+                 class="uf-input" placeholder="Иванов">
+        </div>
+      </div>
+
+      {# Email #}
+      <div class="uf-field">
+        <label class="uf-label" for="id_email">Email</label>
+        <input id="id_email" name="email" type="email"
+               value="{% if form_data %}{{ form_data.email|default:'' }}{% elif target_user %}{{ target_user.email }}{% endif %}"
+               class="uf-input" placeholder="ivanov@example.com">
+      </div>
+
+      <hr class="uf-divider">
+      <div class="uf-section-title">Роль</div>
+
+      {# Role picker #}
+      <div class="uf-role-grid" id="role-grid">
+        {% with cur=form_data.role|default:current_role|default:'viewer' %}
+        <label class="uf-role-card {% if cur == 'admin' %}selected-admin{% endif %}" id="card-admin">
+          <input type="radio" name="role" value="admin" {% if cur == 'admin' %}checked{% endif %}>
+          <div class="uf-role-icon uf-role-icon-admin">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="uf-role-name">Admin</div>
+          <div class="uf-role-desc">Полный доступ, управление пользователями</div>
+        </label>
+        <label class="uf-role-card {% if cur == 'operator' %}selected-operator{% endif %}" id="card-operator">
+          <input type="radio" name="role" value="operator" {% if cur == 'operator' %}checked{% endif %}>
+          <div class="uf-role-icon uf-role-icon-operator">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          </div>
+          <div class="uf-role-name">Operator</div>
+          <div class="uf-role-desc">Управление устройствами и бэкапами</div>
+        </label>
+        <label class="uf-role-card {% if cur == 'viewer' %}selected-viewer{% endif %}" id="card-viewer">
+          <input type="radio" name="role" value="viewer" {% if cur == 'viewer' %}checked{% endif %}>
+          <div class="uf-role-icon uf-role-icon-viewer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <div class="uf-role-name">Viewer</div>
+          <div class="uf-role-desc">Только просмотр данных</div>
+        </label>
+        {% endwith %}
+      </div>
+
+      <hr class="uf-divider">
+      <div class="uf-section-title">{% if is_create %}Пароль{% else %}Смена пароля{% endif %}</div>
+
+      {# Password #}
+      {% if is_create %}
+      <div class="uf-field">
+        <label class="uf-label" for="id_password">Пароль<span class="req">*</span></label>
+        <input id="id_password" name="password" type="password"
+               class="uf-input {% if errors.password %}error{% endif %}"
+               placeholder="Минимум 8 символов" required autocomplete="new-password">
+        {% if errors.password %}
+        <div class="uf-error">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          {{ errors.password }}
+        </div>
+        {% else %}
+        <div class="uf-hint">Минимум 8 символов</div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="uf-field">
+        <label class="uf-label" for="id_new_password">Новый пароль</label>
+        <input id="id_new_password" name="new_password" type="password"
+               class="uf-input {% if errors.new_password %}error{% endif %}"
+               placeholder="Оставьте пустым, чтобы не менять" autocomplete="new-password">
+        {% if errors.new_password %}
+        <div class="uf-error">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          {{ errors.new_password }}
+        </div>
+        {% else %}
+        <div class="uf-hint">Оставьте пустым, если не хотите менять пароль</div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div>
+
+    {# Footer #}
+    <div class="uf-footer">
+      <a href="{% url 'user-list' %}" class="uf-btn">Отмена</a>
+      <button type="submit" class="uf-btn uf-btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        {% if is_create %}Создать{% else %}Сохранить{% endif %}
+      </button>
+    </div>
+  </form>
+
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#role-grid input[type=radio]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    document.querySelectorAll('.uf-role-card').forEach(function(card) {
+      card.className = card.className.replace(/\bselected-\w+\b/g, '').trim();
+    });
+    var card = document.getElementById('card-' + this.value);
+    if (card) card.classList.add('selected-' + this.value);
+  });
+});
+</script>
+{% endblock %}

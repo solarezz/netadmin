@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+
+{% block title %}Пользователи{% endblock %}
+
+{% block breadcrumbs %}
+<div class="flex items-center text-sm text-slate-500 mb-3">
+  <span>Главная</span>
+  <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+  <span>Система</span>
+  <i class="bi bi-chevron-right text-[10px] mx-2"></i>
+  <span class="text-slate-800 font-medium">Пользователи</span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.ul {
+  --c-border:   oklch(0.92 0.006 250);
+  --c-border-s: oklch(0.88 0.008 250);
+  --c-surface:  #ffffff;
+  --c-surface2: oklch(0.97 0.005 250);
+  --c-text:     oklch(0.22 0.02 265);
+  --c-text2:    oklch(0.45 0.02 265);
+  --c-text3:    oklch(0.62 0.015 265);
+  --c-primary:  oklch(0.55 0.17 265);
+  --c-sidebar:  oklch(0.22 0.04 265);
+  --r: 10px;
+  --sh-sm: 0 1px 2px rgba(15,23,42,.04),0 1px 1px rgba(15,23,42,.03);
+}
+.ul-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:22px; gap:20px; }
+.ul-title { font-size:22px; font-weight:600; letter-spacing:-.015em; margin:0 0 4px; color:var(--c-text); }
+.ul-sub   { color:var(--c-text2); font-size:13.5px; }
+.ul-actions { display:flex; gap:10px; align-items:center; }
+.ul .ul-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:13px; font-weight:500; padding:7px 13px;
+  border-radius:7px; border:1px solid var(--c-border);
+  background:var(--c-surface); color:var(--c-text);
+  transition:all 120ms; white-space:nowrap; text-decoration:none; cursor:pointer;
+}
+.ul .ul-btn:hover { background:var(--c-surface2); border-color:var(--c-border-s); }
+.ul .ul-btn-primary { background:var(--c-sidebar); color:#fff; border-color:var(--c-sidebar); }
+.ul .ul-btn-primary:hover { background:oklch(0.26 0.05 265); border-color:oklch(0.26 0.05 265); }
+
+.ul-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.ul-stat {
+  background:var(--c-surface); border:1px solid var(--c-border);
+  border-radius:var(--r); padding:16px 18px;
+  display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  transition:border-color 150ms, box-shadow 150ms;
+}
+.ul-stat:hover { border-color:var(--c-border-s); box-shadow:var(--sh-sm); }
+.ul-stat-label { font-size:12px; color:var(--c-text2); font-weight:500; letter-spacing:.01em; margin-bottom:6px; }
+.ul-stat-value { font-size:26px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+.ul-stat-icon { width:36px; height:36px; border-radius:9px; display:grid; place-items:center; flex-shrink:0; }
+.ul-stat-icon-total    { background:oklch(0.95 0.03 265); color:var(--c-primary); }
+.ul-stat-icon-admin    { background:oklch(0.94 0.04 280); color:oklch(0.52 0.18 280); }
+.ul-stat-icon-operator { background:oklch(0.94 0.05 155); color:oklch(0.52 0.15 155); }
+.ul-stat-icon-viewer   { background:oklch(0.95 0.01 250); color:var(--c-text2); }
+
+.ul-card { background:var(--c-surface); border:1px solid var(--c-border); border-radius:var(--r); overflow:hidden; }
+.ul-card-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-bottom:1px solid var(--c-border); gap:12px;
+}
+.ul-card-title { font-size:14.5px; font-weight:600; color:var(--c-text); }
+.ul-card-sub   { font-size:12px; color:var(--c-text3); margin-top:2px; }
+
+.ul-fbar {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 16px; border-bottom:1px solid var(--c-border);
+  background:var(--c-surface2); flex-wrap:wrap;
+}
+.ul-tabs { display:flex; background:var(--c-surface); border:1px solid var(--c-border); border-radius:8px; padding:3px; gap:2px; }
+.ul-tab {
+  font-size:12.5px; font-weight:500; padding:5px 11px; border-radius:5px;
+  color:var(--c-text2); display:flex; align-items:center; gap:6px;
+  cursor:pointer; background:none; border:none; white-space:nowrap; transition:color 100ms;
+  text-decoration:none;
+}
+.ul-tab:hover { color:var(--c-text); }
+.ul-tab.active { background:var(--c-sidebar); color:#fff; }
+.ul-tab-count {
+  font-size:11px; padding:0 5px; border-radius:8px;
+  background:var(--c-surface2); color:var(--c-text2); font-weight:600;
+}
+.ul-tab.active .ul-tab-count { background:rgba(255,255,255,.18); color:#fff; }
+.ul-spacer { flex:1; }
+.ul-search {
+  display:flex; align-items:center; gap:7px;
+  background:var(--c-surface); border:1px solid var(--c-border);
+  border-radius:7px; padding:5px 10px; width:260px;
+  transition:border-color 150ms, box-shadow 150ms;
+}
+.ul-search:focus-within { border-color:var(--c-primary); box-shadow:0 0 0 3px oklch(0.55 0.17 265 / 0.12); }
+.ul-search input { border:none; outline:none; background:transparent; flex:1; font-size:12.5px; font-family:inherit; }
+
+.ul-wrap { overflow-x:auto; }
+.ul-table { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+.ul-table th {
+  text-align:left; font-weight:500; color:var(--c-text3);
+  padding:10px 16px; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.06em; background:var(--c-surface2);
+  border-bottom:1px solid var(--c-border); white-space:nowrap;
+}
+.ul-table td { padding:12px 16px; border-bottom:1px solid var(--c-border); vertical-align:middle; color:var(--c-text); }
+.ul-table tbody tr { transition:background 100ms; }
+.ul-table tbody tr:hover { background:oklch(0.98 0.01 265); }
+.ul-table tbody tr:last-child td { border-bottom:none; }
+
+.ul-user { display:flex; align-items:center; gap:10px; }
+.ul-avatar {
+  width:32px; height:32px; border-radius:50%;
+  display:grid; place-items:center; font-weight:700; font-size:13px;
+  flex-shrink:0; border:2px solid var(--c-border);
+}
+.ul-avatar-admin    { background:oklch(0.94 0.04 280); color:oklch(0.42 0.18 280); border-color:oklch(0.85 0.06 280); }
+.ul-avatar-operator { background:oklch(0.94 0.05 155); color:oklch(0.42 0.15 155); border-color:oklch(0.85 0.07 155); }
+.ul-avatar-viewer   { background:var(--c-surface2); color:var(--c-text2); }
+.ul-user-name  { font-weight:600; font-size:13px; color:var(--c-text); }
+.ul-user-full  { font-size:11.5px; color:var(--c-text3); }
+
+.ul-role-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:11.5px; font-weight:600; padding:2.5px 9px 2.5px 7px;
+  border-radius:100px; line-height:1.4; white-space:nowrap;
+}
+.ul-role-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.ul-role-admin    { background:oklch(0.94 0.04 280); color:oklch(0.38 0.18 280); }
+.ul-role-admin    .ul-role-dot { background:oklch(0.52 0.18 280); }
+.ul-role-operator { background:oklch(0.94 0.05 155); color:oklch(0.38 0.15 155); }
+.ul-role-operator .ul-role-dot { background:oklch(0.52 0.15 155); }
+.ul-role-viewer   { background:var(--c-surface2); color:var(--c-text2); border:1px solid var(--c-border); }
+.ul-role-viewer   .ul-role-dot { background:var(--c-text3); }
+
+.ul-acts { display:flex; gap:2px; justify-content:flex-end; }
+.ul-act {
+  width:28px; height:28px; border-radius:6px;
+  display:grid; place-items:center; color:var(--c-text3);
+  transition:all 120ms; background:none; border:none; cursor:pointer;
+  text-decoration:none;
+}
+.ul-act:hover { background:var(--c-surface2); color:var(--c-text); }
+.ul-act.danger:hover { background:oklch(0.95 0.035 20); color:oklch(0.58 0.20 20); }
+.ul-act.disabled { opacity:.35; pointer-events:none; }
+
+.ul-mono { font-family:'JetBrains Mono','Courier New',monospace; font-size:12px; color:var(--c-text2); }
+.ul-dim  { color:var(--c-text3); font-size:12.5px; }
+
+.ul-empty { text-align:center; padding:48px 20px; color:var(--c-text3); }
+.ul-empty-icon {
+  width:48px; height:48px; border-radius:50%;
+  background:var(--c-surface2); display:grid; place-items:center;
+  margin:0 auto 12px; color:var(--c-text3);
+}
+
+.ul-you-tag {
+  display:inline-block; font-size:10px; font-weight:600; padding:1px 5px;
+  border-radius:4px; background:oklch(0.92 0.06 265); color:var(--c-primary);
+  margin-left:5px; vertical-align:middle;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ul">
+
+{# ── Header ──────────────────────────────────── #}
+<div class="ul-head">
+  <div>
+    <h1 class="ul-title">Пользователи</h1>
+    <p class="ul-sub">Управление учётными записями и ролями</p>
+  </div>
+  <div class="ul-actions">
+    {% if user_role == 'admin' %}
+    <a href="{% url 'user-add' %}" class="ul-btn ul-btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Добавить пользователя
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Stats ───────────────────────────────────── #}
+<div class="ul-stats">
+  <div class="ul-stat">
+    <div>
+      <div class="ul-stat-label">Всего пользователей</div>
+      <div class="ul-stat-value">{{ count_total }}</div>
+    </div>
+    <div class="ul-stat-icon ul-stat-icon-total">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+  </div>
+  <div class="ul-stat">
+    <div>
+      <div class="ul-stat-label">Администраторы</div>
+      <div class="ul-stat-value" style="color:oklch(0.42 0.18 280)">{{ count_admin }}</div>
+    </div>
+    <div class="ul-stat-icon ul-stat-icon-admin">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+  </div>
+  <div class="ul-stat">
+    <div>
+      <div class="ul-stat-label">Операторы</div>
+      <div class="ul-stat-value" style="color:oklch(0.42 0.15 155)">{{ count_operator }}</div>
+    </div>
+    <div class="ul-stat-icon ul-stat-icon-operator">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+    </div>
+  </div>
+  <div class="ul-stat">
+    <div>
+      <div class="ul-stat-label">Наблюдатели</div>
+      <div class="ul-stat-value" style="color:var(--c-text2)">{{ count_viewer }}</div>
+    </div>
+    <div class="ul-stat-icon ul-stat-icon-viewer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+  </div>
+</div>
+
+{# ── Table Card ──────────────────────────────── #}
+<div class="ul-card">
+  <div class="ul-card-head">
+    <div>
+      <div class="ul-card-title">Все учётные записи</div>
+      <div class="ul-card-sub">{{ users_with_roles|length }} из {{ count_total }} пользователей</div>
+    </div>
+  </div>
+
+  {# Filter bar #}
+  <div class="ul-fbar">
+    <div class="ul-tabs">
+      <a href="?q={{ selected_q }}" class="ul-tab {% if not selected_role %}active{% endif %}">
+        Все <span class="ul-tab-count">{{ count_total }}</span>
+      </a>
+      <a href="?role=admin&q={{ selected_q }}" class="ul-tab {% if selected_role == 'admin' %}active{% endif %}">
+        Admins <span class="ul-tab-count">{{ count_admin }}</span>
+      </a>
+      <a href="?role=operator&q={{ selected_q }}" class="ul-tab {% if selected_role == 'operator' %}active{% endif %}">
+        Operators <span class="ul-tab-count">{{ count_operator }}</span>
+      </a>
+      <a href="?role=viewer&q={{ selected_q }}" class="ul-tab {% if selected_role == 'viewer' %}active{% endif %}">
+        Viewers <span class="ul-tab-count">{{ count_viewer }}</span>
+      </a>
+    </div>
+    <div class="ul-spacer"></div>
+    <form method="get" id="ul-search-form" style="display:contents">
+      <input type="hidden" name="role" value="{{ selected_role }}">
+      <div class="ul-search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.62 0.015 265)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" name="q" id="ul-q" placeholder="Поиск по имени, email..."
+               value="{{ selected_q }}" autocomplete="off">
+      </div>
+    </form>
+  </div>
+
+  {# Table #}
+  <div class="ul-wrap">
+    <table class="ul-table">
+      <thead>
+        <tr>
+          <th>Пользователь</th>
+          <th>Email</th>
+          <th>Роль</th>
+          <th>Последний вход</th>
+          <th>Дата регистрации</th>
+          <th style="text-align:right">Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u, role in users_with_roles %}
+        <tr>
+          <td>
+            <div class="ul-user">
+              <div class="ul-avatar ul-avatar-{{ role }}">
+                {{ u.username|make_list|first|upper }}
+              </div>
+              <div>
+                <div class="ul-user-name">
+                  {{ u.username }}
+                  {% if u == request.user %}<span class="ul-you-tag">вы</span>{% endif %}
+                </div>
+                {% if u.first_name or u.last_name %}
+                <div class="ul-user-full">{{ u.first_name }} {{ u.last_name }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if u.email %}
+            <span class="ul-mono">{{ u.email }}</span>
+            {% else %}
+            <span class="ul-dim">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="ul-role-badge ul-role-{{ role }}">
+              <span class="ul-role-dot"></span>
+              {% if role == 'admin' %}Администратор
+              {% elif role == 'operator' %}Оператор
+              {% else %}Наблюдатель{% endif %}
+            </span>
+          </td>
+          <td>
+            {% if u.last_login %}
+            <span class="ul-mono">{{ u.last_login|date:"d.m.Y H:i" }}</span>
+            {% else %}
+            <span class="ul-dim">Не входил</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="ul-mono">{{ u.date_joined|date:"d.m.Y" }}</span>
+          </td>
+          <td>
+            <div class="ul-acts">
+              {% if user_role == 'admin' %}
+              <a href="{% url 'user-edit' u.pk %}" class="ul-act" title="Редактировать">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </a>
+              {% if u != request.user %}
+              <a href="{% url 'user-delete' u.pk %}" class="ul-act danger" title="Удалить">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </a>
+              {% else %}
+              <span class="ul-act disabled" title="Нельзя удалить себя">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </span>
+              {% endif %}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6">
+            <div class="ul-empty">
+              <div class="ul-empty-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              </div>
+              {% if selected_q or selected_role %}
+                Пользователи по заданным фильтрам не найдены
+              {% else %}
+                Нет пользователей
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let _t = null;
+document.getElementById('ul-q').addEventListener('input', function() {
+  clearTimeout(_t);
+  _t = setTimeout(() => document.getElementById('ul-search-form').submit(), 380);
+});
+document.getElementById('ul-q').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { clearTimeout(_t); document.getElementById('ul-search-form').submit(); }
+});
+</script>
+{% endblock %}

@@ -154,13 +154,15 @@
             <ul class="space-y-1">
                 {% if is_operator %}
                 <li>
-                    <a href="{% url 'dashboard' %}" class="sidebar-link flex items-center px-3 py-2 rounded-md text-sm font-medium opacity-50 cursor-not-allowed" title="В разработке">
+                    <a href="{% url 'user-list' %}" class="sidebar-link flex items-center px-3 py-2 rounded-md text-sm font-medium {% if request.resolver_match.url_name == 'user-list' or request.resolver_match.url_name == 'user-add' or request.resolver_match.url_name == 'user-edit' or request.resolver_match.url_name == 'user-delete' %}active{% endif %}">
                         <i class="bi bi-people mr-3 text-lg"></i>
                         Пользователи
                     </a>
                 </li>
+                {% endif %}
+                {% if user_role == 'admin' %}
                 <li>
-                    <a href="{% url 'dashboard' %}" class="sidebar-link flex items-center px-3 py-2 rounded-md text-sm font-medium opacity-50 cursor-not-allowed" title="В разработке">
+                    <a href="{% url 'settings' %}" class="sidebar-link flex items-center px-3 py-2 rounded-md text-sm font-medium {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
                         <i class="bi bi-gear mr-3 text-lg"></i>
                         Настройки
                     </a>
